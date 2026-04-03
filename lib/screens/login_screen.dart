@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'role_selection_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -147,8 +148,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text('Dont have an account?',style: GoogleFonts.poppins(fontSize: 13)),
                       GestureDetector(
                         onTap: (){
-                          //register screen
-                        },
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
+                          },
                         child: Text('Create Account',style: GoogleFonts.poppins(fontSize: 13,color: Colors.deepPurple,fontWeight: FontWeight.bold),),
                       ),
                     ],
