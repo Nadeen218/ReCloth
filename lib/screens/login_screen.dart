@@ -148,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text('Dont have an account?',style: GoogleFonts.poppins(fontSize: 13)),
                       GestureDetector(
                         onTap: (){
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
+                          Navigator.push(context,MaterialPageRoute(builder: (_) => RoleSelectionScreen()),);
                           },
                         child: Text('Create Account',style: GoogleFonts.poppins(fontSize: 13,color: Colors.deepPurple,fontWeight: FontWeight.bold),),
                       ),

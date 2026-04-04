@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'login_screen.dart';
+import 'register_screen.dart';
 
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+class RoleSelectionScreen extends StatefulWidget {
+  const RoleSelectionScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<RoleSelectionScreen> createState() => _RoleSelectionScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   String? _selectedRole;
   @override
   Widget build(BuildContext context) {
@@ -83,6 +84,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }) {
     final isSelected = _selectedRole == role;
     return GestureDetector(
+     onTap: () {
+        setState(() => _selectedRole = role);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => RegisterScreen(role: role),
+          ),
+        );
+      },
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
