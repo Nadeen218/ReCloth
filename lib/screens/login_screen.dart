@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'role_selection_screen.dart';
-
+import 'home_screen.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -96,7 +96,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
+                    // Temporary until I connect Firebase
                     onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => HomeScreen(role: 'Both', name: 'Nadeen'),
+                        ),
+                      );
                     },
                     icon: const Icon(Icons.login, color: Colors.white),
                     label: Text('Sign In', style: GoogleFonts.poppins(fontSize: 16, color: Colors.white)),
