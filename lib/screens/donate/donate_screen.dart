@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'donation_submitted_screen.dart';
 
 class DonateScreen extends StatefulWidget {
   const DonateScreen({super.key});
@@ -242,6 +243,10 @@ class _DonateScreenState extends State<DonateScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DonationSubmittedScreen()),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.purple,
