@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../donate/donate_screen.dart';
-//import '../donate/track_donations_screen.dart';
+import '../donate/track_donations_screen.dart';
+import '../shop/shop_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String role;
+  final String role; //Buyer, Donor, Both
   final String name;
 
   const HomeScreen({super.key, required this.role, required this.name});
@@ -16,6 +17,17 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
+    // select item depend on role
+    List<BottomNavigationBarItem> navItems = [
+      const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+      if (widget.role == 'Donor' || widget.role == 'Both')
+        const BottomNavigationBarItem(icon: Icon(Icons.checkroom), label: 'Donate'),
+      const BottomNavigationBarItem(icon: Icon(Icons.shopping_bag_outlined), label: 'Shop'),
+      if (widget.role == 'Buyer' || widget.role == 'Both')
+        const BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Remake'),
+      const BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
+    ];
+
     return Scaffold(
       backgroundColor: const Color(0xFFF3EEFF),
       body: SafeArea(
@@ -24,44 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // header
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  color: Colors.deepPurple,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Hello, ${widget.name}! 👋',
-                            style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                        Text('Welcome back to ReCloth',
-                            style: GoogleFonts.poppins(fontSize: 13, color: Colors.white70)),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.amber,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.stars, color: Colors.white, size: 16),
-                          const SizedBox(width: 4),
-                          Text('120 Points', style: GoogleFonts.poppins(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _buildHeader(),
 
               const SizedBox(height: 16),
               Padding(
@@ -71,39 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     //Impact st
                     if (widget.role == 'Donor' || widget.role == 'Both') ...[
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [BoxShadow(color: Colors.purple.withOpacity(0.08), blurRadius: 10)],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('Your Impact This Month',
-                                    style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold)),
-                                Row(children: [
-                                  const Icon(Icons.location_on, size: 14, color: Colors.purple),
-                                  Text('Palestine', style: GoogleFonts.poppins(fontSize: 12, color: Colors.purple)),
-                                ]),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                _statItem('♻️', '12', 'Items Donated'),
-                                _statItem('🤍', '8', 'Lives Impacted'),
-                                _statItem('🌿', '15kg', 'CO₂ Saved', color: Colors.deepPurple),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
+                      _buildImpactCard(),
                       const SizedBox(height: 16),
                     ],
                     // Quick action
@@ -114,28 +57,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
                       childAspectRatio: 1.3,
-                      children: [
-                        if (widget.role == 'Donor' || widget.role == 'Both')
-                          _actionCard(Icons.checkroom, 'Donate Clothes', 'Give your clothes a second life', () {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const DonateScreen()));
-                          }),
-                        if (widget.role == 'Buyer' || widget.role == 'Both')
-                          _actionCard(Icons.shopping_bag_outlined, 'Shop', 'Browse recycled fashion', () {}),
-                        _actionCard(Icons.card_giftcard, 'Rewards', 'Redeem your eco points', () {}),
-                        if (widget.role == 'Donor' || widget.role == 'Both')
-                          _actionCard(Icons.track_changes, 'Track Donation', 'Follow your donation journey', () {
-                           // Navigator.push(context, MaterialPageRoute(builder: (_) => const TrackDonationsScreen()));
-                          }),
-                      ],
+                      children: _buildGridCards(context),
                     ),
-                    const SizedBox(height: 16),
-                    // Featured offers
+
+                    const SizedBox(height: 20),
+                    // featured offers
                     Text('Featured Offers',
                         style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
                     _offerCard('Winter Collection', 'Up to 40% off on recycled winter wear', 'assets/winter.jpg'),
                     const SizedBox(height: 12),
-                    _offerCard('Donate & Earn', 'Get 20 bonus points on your next donation', 'assets/donateEarn.jpg'),
+                    if (widget.role != 'Buyer')
+                      _offerCard('Donate & Earn', 'Get 20 bonus points on your next donation', 'assets/donateEarn.jpg'),
                     const SizedBox(height: 16),
                   ],
                 ),
@@ -144,25 +77,127 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      // bottom navigation
+
+      // bottom navigation bar
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.deepPurple,
         unselectedItemColor: Colors.grey,
         currentIndex: 0,
+        items: navItems,
         onTap: (index) {
-          if (index == 1) {
-            if (widget.role == 'Donor' || widget.role == 'Both') {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const DonateScreen()));
-            }
+          // move depend on label
+          String label = navItems[index].label!;
+          if (label == 'Donate') {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const DonateScreen()));
+          } else if (label == 'Shop') {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopScreen()));
+          } else if (label == 'Remake') {
           }
         },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.checkroom), label: 'Donate'),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag_outlined), label: 'Shop'),
-          BottomNavigationBarItem(icon: Icon(Icons.card_giftcard), label: 'Rewards'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
+      ),
+    );
+  }
+
+  // build depend on role
+  List<Widget> _buildGridCards(BuildContext context) {
+    List<Widget> cards = [];
+
+    // doner option
+    if (widget.role == 'Donor' || widget.role == 'Both') {
+      cards.add(_actionCard(Icons.checkroom, 'Donate', 'Give a second life', () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const DonateScreen()));
+      }));
+      cards.add(_actionCard(Icons.track_changes, 'Track', 'Follow your item', () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const TrackDonationsScreen()));
+      }));
+    }
+
+    // buyer option
+    if (widget.role == 'Buyer' || widget.role == 'Both') {
+      cards.add(_actionCard(Icons.shopping_bag_outlined, 'Shop', 'Recycled fashion', () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopScreen()));
+      }));
+      cards.add(_actionCard(Icons.auto_awesome, 'Remake Studio', 'Suggest designs', () {
+      }));
+    }
+
+    // both
+    cards.add(_actionCard(Icons.card_giftcard, 'Rewards', 'Redeem points', () {}));
+
+    return cards;
+  }
+
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        color: Colors.deepPurple,
+        borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Hello, ${widget.name}! 👋',
+                  style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text('Welcome back to ReCloth',
+                  style: GoogleFonts.poppins(fontSize: 13, color: Colors.white70)),
+            ],
+          ),
+          _buildPointsBadge(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPointsBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(color: Colors.amber, borderRadius: BorderRadius.circular(20)),
+      child: Row(
+        children: [
+          const Icon(Icons.stars, color: Colors.white, size: 16),
+          const SizedBox(width: 4),
+          Text('120 Points', style: GoogleFonts.poppins(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImpactCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.purple.withOpacity(0.08), blurRadius: 10)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Your Impact This Month', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold)),
+              Row(children: [
+                const Icon(Icons.location_on, size: 14, color: Colors.purple),
+                Text('Palestine', style: GoogleFonts.poppins(fontSize: 12, color: Colors.purple)),
+              ]),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _statItem('♻️', '12', 'Items Donated'),
+              _statItem('🤍', '8', 'Lives Impacted'),
+              _statItem('🌿', '15kg', 'CO₂ Saved', color: Colors.deepPurple),
+            ],
+          ),
         ],
       ),
     );
@@ -197,8 +232,8 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Icon(icon, color: Colors.white, size: 22),
             ),
             const SizedBox(height: 8),
-            Text(title, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold)),
-            Text(subtitle, style: GoogleFonts.poppins(fontSize: 10, color: Colors.black45), textAlign: TextAlign.center),
+            Text(title, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+            Text(subtitle, style: GoogleFonts.poppins(fontSize: 9, color: Colors.black45), textAlign: TextAlign.center),
           ],
         ),
       ),
@@ -217,19 +252,16 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Container(
             height: 120,
+            width: double.infinity,
             decoration: BoxDecoration(
               color: Colors.grey[300],
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
             ),
             child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-              child: Image.asset(imagePath, fit: BoxFit.cover, width: double.infinity),
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+              child: imagePath.startsWith('assets')
+                  ? Image.asset(imagePath, fit: BoxFit.cover)
+                  : Container(color: Colors.grey[200], child: const Icon(Icons.image_outlined)),
             ),
           ),
           Padding(
