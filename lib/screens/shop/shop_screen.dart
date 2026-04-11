@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'ItemDetails_Screen.dart';
 
 class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key});
@@ -16,8 +17,9 @@ class _ShopScreenState extends State<ShopScreen> {
   TextEditingController searchController = TextEditingController();
   List<String> favoriteProducts = [];
 //example of item until connect firebase
-  final List<Map<String, String>> allProducts = [
+  final List<Map<String, dynamic>> allProducts = [
     {
+      "name": "Classic Denim Jacket",
       "title": "Classic Denim Jacket",
       "description": "Vintage-style denim jacket, professionally restored",
       "size": "M",
@@ -26,8 +28,13 @@ class _ShopScreenState extends State<ShopScreen> {
       "gender": "Men",
       "price": "20",
       "imageUrl": "",
+      "images": [
+        "",
+        "",
+      ],
     },
     {
+      "name": "Black Cotton T-Shirt",
       "title": "Black Cotton T-Shirt",
       "description": "Premium black cotton tee, almost brand new",
       "size": "L",
@@ -36,8 +43,13 @@ class _ShopScreenState extends State<ShopScreen> {
       "gender": "Men",
       "price": "8",
       "imageUrl": "",
+      "images": [
+        "",
+        "",
+      ],
     },
     {
+      "name": "Floral Summer Dress",
       "title": "Floral Summer Dress",
       "description": "Light and airy floral dress for summer days",
       "size": "S",
@@ -46,8 +58,13 @@ class _ShopScreenState extends State<ShopScreen> {
       "gender": "Women",
       "price": "15",
       "imageUrl": "",
+      "images": [
+       "",
+       "",
+      ],
     },
     {
+      "name": "Kids Sporty Hoodie",
       "title": "Kids Sporty Hoodie",
       "description": "Comfortable cotton hoodie for active kids",
       "size": "S",
@@ -56,10 +73,14 @@ class _ShopScreenState extends State<ShopScreen> {
       "gender": "Kids",
       "price": "12",
       "imageUrl": "",
+      "images": [
+        "",
+        "",
+          ],
     },
   ];
 
-  List<Map<String, String>> filteredProducts = [];
+  List<Map<String, dynamic>> filteredProducts = [];
 
   @override
   void initState() {
@@ -244,93 +265,103 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 
   // item card
-  Widget _buildProductCard(Map<String, String> product) {
+  Widget _buildProductCard(Map<String, dynamic> product) {
     bool isFav = favoriteProducts.contains(product['title']);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: 2,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                child: product['imageUrl']!.isNotEmpty
-                    ? Image.network(product['imageUrl']!, height: 260, width: double.infinity, fit: BoxFit.cover)
-                    : Container(height: 260, color: Colors.grey[200], child: const Icon(Icons.image)),
-              ),
-              Positioned(
-                top: 15,
-                left: 15,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(10)),
-                  child: Text("₪${product['price']}", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ItemDetailsScreen(item: product),
+          ),
+        );
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 2,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  child: product['imageUrl']!.isNotEmpty
+                      ? Image.network(product['imageUrl']!, height: 260, width: double.infinity, fit: BoxFit.cover)
+                      : Container(height: 260, color: Colors.grey[200], child: const Icon(Icons.image)),
                 ),
-              ),
-              Positioned(
-                top: 10,
-                right: 10,
-                child: CircleAvatar(
-                  backgroundColor: Colors.white,
-                  child: IconButton(
-                    icon: Icon(isFav ? Icons.favorite : Icons.favorite_border, color: Colors.red),
-                    onPressed: () {
-                      setState(() {
-                        isFav ? favoriteProducts.remove(product['title']) : favoriteProducts.add(product['title']!);
-                      });
-                    },
+                Positioned(
+                  top: 15,
+                  left: 15,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(10)),
+                    child: Text("₪${product['price']}", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(product['title']!, style: GoogleFonts.poppins(fontSize: 15)),
-                    Text(product['gender']!, style: GoogleFonts.poppins(color: const Color(0xFF8B00FF), fontSize: 12, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(product['description']!, style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 13)),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _buildChip("Size: ${product['size']}"),
-                    const SizedBox(width: 8),
-                    _buildChip(product['condition']!),
-                  ],
-                ),
-                const SizedBox(height: 15),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("${product['title']} added to cart!")),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF8B00FF),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: CircleAvatar(
+                    backgroundColor: Colors.white,
+                    child: IconButton(
+                      icon: Icon(isFav ? Icons.favorite : Icons.favorite_border, color: Colors.red),
+                      onPressed: () {
+                        setState(() {
+                          isFav ? favoriteProducts.remove(product['title']) : favoriteProducts.add(product['title']!);
+                        });
+                      },
                     ),
-                    child: Text("Add to Cart", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(product['title']!, style: GoogleFonts.poppins(fontSize: 15)),
+                      Text(product['gender']!, style: GoogleFonts.poppins(color: const Color(0xFF8B00FF), fontSize: 12, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(product['description']!, style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 13)),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      _buildChip("Size: ${product['size']}"),
+                      const SizedBox(width: 8),
+                      _buildChip(product['condition']!),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("${product['title']} added to cart!")),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF8B00FF),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text("Add to Cart", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -119,6 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopScreen()));
       }));
       cards.add(_actionCard(Icons.auto_awesome, 'Remake Studio', 'Suggest designs', () {
+        // Navigator.push(context, MaterialPageRoute(builder: (_) => const RemakeStudioScreen()));
       }));
     }
 
