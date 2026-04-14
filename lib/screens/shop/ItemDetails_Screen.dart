@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'cart/cart_screen.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/cart_provider.dart';
+
 
 class ItemDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> item;
@@ -241,28 +245,45 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
   }
 
   Widget _buildActionButtons() {
-    return Column(
-      children: [
-        ElevatedButton(
-          onPressed: () {},
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.purple[600],
-            minimumSize: const Size(double.infinity, 55),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          ),
-          child: const Text("Add to Cart", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        ),
-        const SizedBox(height: 12),
-        OutlinedButton(
-          onPressed: () {},
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 55),
-            side: BorderSide(color: Colors.grey[300]!),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          ),
-          child: const Text("Go to Cart", style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
-        ),
-      ],
+    return Consumer<CartProvider>(
+      builder: (context, cart, _) {
+        return Column(
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                cart.addItem(widget.item);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text("${widget.item['name']} added to cart!"),
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple[600],
+                minimumSize: const Size(double.infinity, 55),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              child: const Text("Add to Cart", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CartScreen()),
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 55),
+                side: BorderSide(color: Colors.grey[300]!),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              child: const Text("Go to Cart", style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        );
+      },
     );
   }
 

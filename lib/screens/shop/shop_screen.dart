@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'ItemDetails_Screen.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/cart_provider.dart';
+import 'cart/cart_screen.dart';
+
 
 class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key});
@@ -26,7 +30,7 @@ class _ShopScreenState extends State<ShopScreen> {
       "condition": "Good",
       "type": "Jackets",
       "gender": "Men",
-      "price": "20",
+      "price": 20,
       "imageUrl": "",
       "images": [
         "",
@@ -41,7 +45,7 @@ class _ShopScreenState extends State<ShopScreen> {
       "condition": "Like New",
       "type": "Shirts",
       "gender": "Men",
-      "price": "8",
+      "price": 8,
       "imageUrl": "",
       "images": [
         "",
@@ -56,7 +60,7 @@ class _ShopScreenState extends State<ShopScreen> {
       "condition": "Good",
       "type": "Dresses",
       "gender": "Women",
-      "price": "15",
+      "price": 15,
       "imageUrl": "",
       "images": [
        "",
@@ -71,7 +75,7 @@ class _ShopScreenState extends State<ShopScreen> {
       "condition": "Like New",
       "type": "Coats",
       "gender": "Kids",
-      "price": "12",
+      "price": 12,
       "imageUrl": "",
       "images": [
         "",
@@ -106,6 +110,7 @@ class _ShopScreenState extends State<ShopScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cart = Provider.of<CartProvider>(context);
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -120,9 +125,30 @@ class _ShopScreenState extends State<ShopScreen> {
           style: GoogleFonts.poppins(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.shopping_cart_outlined, color: Colors.black),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CartScreen()),
+                  );
+                },
+                icon: const Icon(Icons.shopping_cart_outlined, color: Colors.black),
+              ),
+              if (cart.itemCount > 0)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(color: Colors.purple, shape: BoxShape.circle),
+                    child: Text('${cart.itemCount}',
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -247,7 +273,7 @@ class _ShopScreenState extends State<ShopScreen> {
                 ? ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: filteredProducts.length,
-              itemBuilder: (context, index) => _buildProductCard(filteredProducts[index]),
+              itemBuilder: (context, index) => _buildProductCard(filteredProducts[index],cart),
             )
                 : Center(
               child: Column(
@@ -265,7 +291,7 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 
   // item card
-  Widget _buildProductCard(Map<String, dynamic> product) {
+  Widget _buildProductCard(Map<String, dynamic> product, CartProvider cart) {
     bool isFav = favoriteProducts.contains(product['title']);
 
     return GestureDetector(
@@ -345,8 +371,10 @@ class _ShopScreenState extends State<ShopScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
+                        cart.addItem(product);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text("${product['title']} added to cart!")),
+
                         );
                       },
                       style: ElevatedButton.styleFrom(
@@ -357,6 +385,7 @@ class _ShopScreenState extends State<ShopScreen> {
                       child: Text("Add to Cart", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
                     ),
                   ),
+
                 ],
               ),
             ),

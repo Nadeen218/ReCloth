@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/auth/login_screen.dart';
-void main() => runApp(const MaterialApp(
-  debugShowCheckedModeBanner: false,
-  home: SplashScreen(),
-));
+import 'package:provider/provider.dart';
+import 'providers/cart_provider.dart';
+void main() => runApp(
+  ChangeNotifierProvider(
+    create: (_) => CartProvider(),
+    child: const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: SplashScreen(),
+    ),
+  ),
+);
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
