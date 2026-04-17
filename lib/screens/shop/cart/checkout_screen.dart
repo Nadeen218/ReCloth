@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'order_placed_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final double totalAmount;
@@ -156,7 +157,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // Finalize order logic goes here
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const OrderPlacedScreen()),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF9C27B0),

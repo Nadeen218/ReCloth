@@ -59,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       childAspectRatio: 1.3,
                       children: _buildGridCards(context),
                     ),
-
+                    _buildAboutUsSection(),
                     const SizedBox(height: 20),
                     // featured offers
                     Text('Featured Offers',
@@ -70,6 +70,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (widget.role != 'Buyer')
                       _offerCard('Donate & Earn', 'Get 20 bonus points on your next donation', 'assets/donateEarn.jpg'),
                     const SizedBox(height: 16),
+                    _buildFeedbackSection(),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -145,11 +147,131 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text('Hello, ${widget.name}! 👋',
                   style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+              _buildRoleBadge(),
               Text('Welcome back to ReCloth',
                   style: GoogleFonts.poppins(fontSize: 13, color: Colors.white70)),
             ],
           ),
           _buildPointsBadge(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoleBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.white30),
+      ),
+      child: Text(
+        widget.role.toUpperCase(),
+        style: GoogleFonts.poppins(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+      ),
+    );
+  }
+
+  //feedback section
+  Widget _buildFeedbackSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Community Voices',
+            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 140,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _feedbackItem('Sarah J.', 'Donor', 'Amazing quality for refurbished clothes!'),
+              _feedbackItem('Omar K.', 'Buyer', 'Fast delivery and very clean items.'),
+              _feedbackItem('Hiba M.', 'Both', 'Love the sustainable mission of this app.'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _feedbackItem(String name, String userRole, String text) {
+    return Container(
+      width: 240,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.purple.withOpacity(0.05), blurRadius: 10)
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: List.generate(
+                5, (i) => const Icon(Icons.star, color: Colors.amber, size: 14)),
+          ),
+          const SizedBox(height: 8),
+          Text(text,
+              style: GoogleFonts.poppins(fontSize: 11, color: Colors.black87),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis),
+          const Spacer(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('- $name',
+                  style: GoogleFonts.poppins(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  userRole,
+                  style: GoogleFonts.poppins(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[600]),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  Widget _buildAboutUsSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.deepPurple.withOpacity(0.1)),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.eco_rounded, color: Colors.green, size: 40),
+          const SizedBox(height: 12),
+          Text(
+            'Our Mission',
+            style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'ReCloth is a sustainable fashion community in Palestine. We collect, refurbish, and give your pre-loved clothes a second life to protect our planet.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(fontSize: 13, color: Colors.black54, height: 1.5),
+          ),
         ],
       ),
     );
@@ -279,4 +401,5 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
 }
