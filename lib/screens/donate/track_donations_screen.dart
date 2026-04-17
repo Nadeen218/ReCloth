@@ -19,7 +19,7 @@ class TrackDonationsScreen extends StatelessWidget {
     {
       'category': 'dresses',
       'date': '4/6/2026',
-      'status': 'Request Received',
+      'status': 'Sold',
       'condition': 'excellent',
       'address': 'Palestine',
       'points': '+25 points',
@@ -38,6 +38,7 @@ class TrackDonationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final TextEditingController feedbackController = TextEditingController();
     return Scaffold(
       backgroundColor: const Color(0xFFF3EEFF),
       appBar: AppBar(
@@ -169,6 +170,25 @@ class TrackDonationsScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                if (donation['status'] == 'Sold') ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        _showFeedbackDialog(context, feedbackController);
+                      },
+                      icon: const Icon(Icons.rate_review_outlined, size: 18, color: Colors.white),
+                      label: Text('Share your Experience',
+                          style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           );
@@ -186,6 +206,68 @@ class TrackDonationsScreen extends StatelessWidget {
           Text(label, style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45)),
           Text(value, style: GoogleFonts.poppins(fontSize: 12, color: valueColor, fontWeight: FontWeight.w600)),
         ],
+      ),
+    );
+  }
+  void _showFeedbackDialog(BuildContext context, TextEditingController controller) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          top: 24,
+          left: 24,
+          right: 24,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('How was your donation experience?',
+                style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            TextField(
+              controller: controller,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Write your feedback here...',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                if (controller.text.isNotEmpty) {
+                  print("User Feedback: ${controller.text}");
+
+                  Navigator.pop(context);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Feedback submitted! It will appear on Home Page.'),
+                      backgroundColor: Colors.deepPurple,
+                    ),
+                  );
+                  controller.clear();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Submit Feedback', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
       ),
     );
   }

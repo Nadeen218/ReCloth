@@ -74,6 +74,7 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
               const SizedBox(height: 8),
               TextField(
                 controller: _feedbackController,
+                maxLines: 2,
                 decoration: InputDecoration(
                   hintText: 'Your thoughts about your shopping experience',
                   hintStyle: GoogleFonts.poppins(fontSize: 12),
@@ -87,7 +88,19 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _isTyping ? () {
-                    //for submitting feedback
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Thank you! Your feedback has been submitted.',
+                            style: GoogleFonts.poppins(fontSize: 12)),
+                        backgroundColor: Colors.grey,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                    _feedbackController.clear();
+                    FocusScope.of(context).unfocus();
+                    setState(() {
+                      _isTyping = false;
+                    });
                   } : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isTyping ? const Color(0xFF3F51B5) : const Color(0xFF91A7FF),
