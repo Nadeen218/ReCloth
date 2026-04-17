@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 class TrackDonationsScreen extends StatelessWidget {
   const TrackDonationsScreen({super.key});
 
+  // Added expectedPayment and isFullDonation to reflect your new donation logic
   final List<Map<String, dynamic>> _donations = const [
     {
       'category': 'bottoms',
@@ -12,6 +13,8 @@ class TrackDonationsScreen extends StatelessWidget {
       'condition': 'excellent',
       'address': 'Palestine',
       'points': '+15 points',
+      'expectedPayment': '5 NIS', // Dynamic price based on category
+      'isFullDonation': false,   // To decide if we show the payment box
     },
     {
       'category': 'dresses',
@@ -19,16 +22,18 @@ class TrackDonationsScreen extends StatelessWidget {
       'status': 'Request Received',
       'condition': 'excellent',
       'address': 'Palestine',
-      'points': '+15 points',
+      'points': '+25 points',
+      'expectedPayment': null,    // No payment for full donation
+      'isFullDonation': true,
     },
   ];
 
   final List<Map<String, dynamic>> _steps = const [
     {'icon': Icons.check_circle_outline, 'label': 'Request Received', 'desc': 'Currently in progress'},
-    {'icon': Icons.local_shipping_outlined, 'label': 'Picked Up', 'desc': ''},
-    {'icon': Icons.water_drop_outlined, 'label': 'Cleaning in Progress', 'desc': ''},
-    {'icon': Icons.label_outline, 'label': 'Ready for Sale', 'desc': ''},
-    {'icon': Icons.attach_money, 'label': 'Sold', 'desc': ''},
+    {'icon': Icons.local_shipping_outlined, 'label': 'Picked Up', 'desc': 'Driver is on the way'},
+    {'icon': Icons.water_drop_outlined, 'label': 'Cleaning in Progress', 'desc': 'At our facility'},
+    {'icon': Icons.label_outline, 'label': 'Ready for Sale', 'desc': 'Listed on marketplace'},
+    {'icon': Icons.attach_money, 'label': 'Sold', 'desc': 'Completed'},
   ];
 
   @override
@@ -61,7 +66,7 @@ class TrackDonationsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
+                // Header section
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -85,9 +90,9 @@ class TrackDonationsScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
-                // Steps
+                // Tracking Steps logic
                 ..._steps.map((step) {
                   final isActive = step['label'] == donation['status'];
                   return Padding(
@@ -123,40 +128,47 @@ class TrackDonationsScreen extends StatelessWidget {
                   );
                 }),
 
-                const Divider(),
-                const SizedBox(height: 8),
+                const Divider(height: 32),
 
-                // Details
+                // Donation details summary
                 _detailRow('Condition:', donation['condition']),
                 _detailRow('Pickup Address:', donation['address']),
                 _detailRow('Points Earned:', donation['points'], valueColor: Colors.purple),
-                const SizedBox(height: 12),
 
-                // Payment Info
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF3EEFF),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.attach_money, color: Colors.purple, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Payment Information',
-                                style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold)),
-                            Text('Payment will be processed once your donated item is sold.',
-                                style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45)),
-                          ],
+                const SizedBox(height: 16),
+
+                // Conditional Payment Info Box
+                // Only shows if it's NOT a full donation and there is an expected payment
+                if (!donation['isFullDonation'] && donation['expectedPayment'] != null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3EEFF),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.payments_outlined, color: Colors.purple, size: 22),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Payment Information',
+                                  style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 4),
+                              // Displaying the specific payout amount
+                              Text('Estimated Payout: ${donation['expectedPayment']}',
+                                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.green[700], fontWeight: FontWeight.bold)),
+                              Text('Payment will be processed once your donated item is sold.',
+                                  style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45)),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
               ],
             ),
           );
@@ -167,12 +179,12 @@ class TrackDonationsScreen extends StatelessWidget {
 
   Widget _detailRow(String label, String value, {Color valueColor = Colors.black87}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45)),
-          Text(value, style: GoogleFonts.poppins(fontSize: 12, color: valueColor, fontWeight: FontWeight.w500)),
+          Text(value, style: GoogleFonts.poppins(fontSize: 12, color: valueColor, fontWeight: FontWeight.w600)),
         ],
       ),
     );
