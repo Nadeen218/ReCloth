@@ -82,18 +82,9 @@ class CartScreen extends StatelessWidget {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: Image.network(
-                        item['imageUrl'],
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          width: 80,
-                          height: 80,
-                          color: Colors.grey[200],
-                          child: const Icon(Icons.image),
-                        ),
-                      ),
+                      child: item['imageUrl'].isNotEmpty
+                          ? Image.network(item['imageUrl'], width: 80, height: 80, fit: BoxFit.cover)
+                          : Container(width: 80, height: 80, color: Colors.grey[200], child: const Icon(Icons.image)),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -119,18 +110,23 @@ class CartScreen extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('₪${item['price'].toStringAsFixed(0)}',
+                              Text('₪${item['price']}',
                                   style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.purple)),
-                              Row(
-                                children: [
-                                  _qtyButton(Icons.remove, () => cart.decreaseQuantity(index)),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    child: Text('${item['quantity']}',
-                                        style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold)),
+
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.purple.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  "Unique Piece",
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 10,
+                                      color: Colors.purple,
+                                      fontWeight: FontWeight.w600
                                   ),
-                                  _qtyButton(Icons.add, () => cart.increaseQuantity(index)),
-                                ],
+                                ),
                               ),
                             ],
                           ),

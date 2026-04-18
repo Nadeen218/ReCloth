@@ -25,6 +25,7 @@ class _ShopScreenState extends State<ShopScreen> {
     {
       "name": "Classic Denim Jacket",
       "title": "Classic Denim Jacket",
+      "isAvailable": true,
       "description": "Vintage-style denim jacket, professionally restored",
       "size": "M",
       "condition": "Good",
@@ -32,6 +33,7 @@ class _ShopScreenState extends State<ShopScreen> {
       "gender": "Men",
       "price": 20,
       "imageUrl": "",
+      "isUnique": true,
       "images": [
         "",
         "",
@@ -40,6 +42,7 @@ class _ShopScreenState extends State<ShopScreen> {
     {
       "name": "Black Cotton T-Shirt",
       "title": "Black Cotton T-Shirt",
+      "isAvailable": false,
       "description": "Premium black cotton tee, almost brand new",
       "size": "L",
       "condition": "Like New",
@@ -121,7 +124,7 @@ class _ShopScreenState extends State<ShopScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Shop Fashion',
+          'ReCloth Store',
           style: GoogleFonts.poppins(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         actions: [
@@ -322,9 +325,52 @@ class _ShopScreenState extends State<ShopScreen> {
                   top: 15,
                   left: 15,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(10)),
-                    child: Text("₪${product['price']}", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B00FF).withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        )
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.auto_awesome, color: Colors.white, size: 13),
+                        const SizedBox(width: 4),
+                        Text(
+                          "UNIQUE PIECE",
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 15,
+                  left: 15,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.auto_awesome, color: Colors.white, size: 12),
+                        const SizedBox(width: 4),
+                        Text("Only 1 Available",
+                            style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10)),
+                      ],
+                    ),
                   ),
                 ),
                 Positioned(
@@ -334,11 +380,7 @@ class _ShopScreenState extends State<ShopScreen> {
                     backgroundColor: Colors.white,
                     child: IconButton(
                       icon: Icon(isFav ? Icons.favorite : Icons.favorite_border, color: Colors.red),
-                      onPressed: () {
-                        setState(() {
-                          isFav ? favoriteProducts.remove(product['title']) : favoriteProducts.add(product['title']!);
-                        });
-                      },
+                      onPressed: () => setState(() => isFav ? favoriteProducts.remove(product['title']) : favoriteProducts.add(product['title']!)),
                     ),
                   ),
                 ),
@@ -352,40 +394,59 @@ class _ShopScreenState extends State<ShopScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(product['title']!, style: GoogleFonts.poppins(fontSize: 15)),
-                      Text(product['gender']!, style: GoogleFonts.poppins(color: const Color(0xFF8B00FF), fontSize: 12, fontWeight: FontWeight.w600)),
+                      Text(product['title']!, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text("₪${product['price']}", style: GoogleFonts.poppins(color: const Color(0xFF8B00FF), fontWeight: FontWeight.bold, fontSize: 16)),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(product['description']!, style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 13)),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       _buildChip("Size: ${product['size']}"),
                       const SizedBox(width: 8),
-                      _buildChip(product['condition']!),
+                      _buildChip("Condition: ${product['condition']}"),
                     ],
                   ),
                   const SizedBox(height: 15),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        cart.addItem(product);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("${product['title']} added to cart!")),
-
-                        );
-                      },
+                      onPressed: (product['isAvailable'] ?? true)
+                          ? () {
+                        final bool isAlreadyInCart = cart.cartItems.any((item) => item['name'] == product['name']);
+                        if (isAlreadyInCart) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("This unique piece is already in your cart!"),
+                              backgroundColor: Colors.redAccent,
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        } else {
+                          cart.addItem(product);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text("${product['title']} added to cart!"),
+                              backgroundColor: const Color(0xFF8B00FF),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      }
+                          : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8B00FF),
+                        backgroundColor: (product['isAvailable'] ?? true)
+                            ? const Color(0xFF8B00FF)
+                            : Colors.grey[400],
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: Text("Add to Cart", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+
+                      child: Text(
+                          (product['isAvailable'] ?? true) ? "Add to Cart" : "Sold Out",
+                          style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)
+                      ),
                     ),
                   ),
-
                 ],
               ),
             ),
@@ -406,14 +467,14 @@ class _ShopScreenState extends State<ShopScreen> {
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF8B00FF).withOpacity(0.1) : Colors.grey[100],
+          color: isSelected ? const Color(0xFFFF9800).withOpacity(0.1) : Colors.grey[100],
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? const Color(0xFF8B00FF) : Colors.transparent),
+          border: Border.all(color: isSelected ? const Color(0xFFFF9800) : Colors.transparent),
         ),
         child: Text(
           category,
           style: GoogleFonts.poppins(
-            color: isSelected ? const Color(0xFF8B00FF) : Colors.black54,
+            color: isSelected ? const Color(0xFFFF9800) : Colors.black54,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),

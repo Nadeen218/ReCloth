@@ -247,24 +247,44 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
   Widget _buildActionButtons() {
     return Consumer<CartProvider>(
       builder: (context, cart, _) {
+        bool isAvailable = widget.item['isAvailable'] ?? true;
+        bool isAlreadyInCart = cart.cartItems.any((item) => item['name'] == widget.item['name']);
+
         return Column(
           children: [
             ElevatedButton(
-              onPressed: () {
-                cart.addItem(widget.item);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text("${widget.item['name']} added to cart!"),
-                    duration: const Duration(seconds: 1),
-                  ),
-                );
-              },
+              onPressed: isAvailable
+                  ? () {
+                if (isAlreadyInCart) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("This unique piece is already in your cart!"),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                } else {
+                  cart.addItem(widget.item);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("${widget.item['name']} added to cart!"),
+                      backgroundColor: Colors.purple[600],
+                      duration: const Duration(seconds: 1),
+                    ),
+                  );
+                }
+              }
+                  : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple[600],
+                backgroundColor: isAvailable ? Colors.purple[600] : Colors.grey[400],
                 minimumSize: const Size(double.infinity, 55),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
-              child: const Text("Add to Cart", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text(
+                  isAvailable
+                      ? (isAlreadyInCart ? "Already in Cart" : "Add to Cart")
+                      : "Sold Out",
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+              ),
             ),
             const SizedBox(height: 12),
             OutlinedButton(
