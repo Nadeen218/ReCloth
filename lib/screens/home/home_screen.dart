@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:graduation_project/screens/rewards/rewards_screen.dart';
 import '../../providers/user_provider.dart';
 import '../donate/donate_screen.dart';
 import '../donate/track_donations_screen.dart';
@@ -138,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     cards.add(_actionCard(Icons.card_giftcard, 'Rewards', 'Redeem points', () {
-      // Navigate to Rewards
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const RewardsScreen()));
     }));
 
     return cards;
