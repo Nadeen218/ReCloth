@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
 import 'edit_profile_screen.dart';
 import '../auth/login_screen.dart';
+import 'help_support_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -150,31 +151,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _optionTile("Switch Account Type", Icons.swap_horiz, Colors.blue, () {
             _showAccountTypeDialog();
           }),
-
-          if (userRole == "Buyer" || userRole == "Both") ...[
-            const Divider(),
-            _optionTile(
-              "My Orders",
-              Icons.history,
-              Colors.orange,
-                  () {},
-              trailingText: ordersCount > 0 ? "$ordersCount Orders" : "No Orders",
-            ),
-          ],
-
-          if (userRole == "Donor" || userRole == "Both") ...[
-            const Divider(),
-            _optionTile(
-              "My Donations",
-              Icons.volunteer_activism_outlined,
-              Colors.green,
-                  () {},
-              trailingText: donationCount > 0 ? "$donationCount Items" : "No Items",
-            ),
-          ],
-
           const Divider(),
-          _optionTile("Help & Support", Icons.help_outline, Colors.green, () {}),
+          _optionTile("Help & Support", Icons.help_outline, Colors.green, () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpSupportScreen()));
+          }),
           const Divider(),
           _optionTile("Logout", Icons.logout, Colors.grey, () {
             Navigator.of(context).pushAndRemoveUntil(
