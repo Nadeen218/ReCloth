@@ -51,7 +51,9 @@ class TrackDonationsScreen extends StatelessWidget {
         title: Text('Track Donations',
             style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
       ),
-      body: ListView.builder(
+      body: _donations.isEmpty
+          ? _buildEmptyState(context) // if empty
+          : ListView.builder( // if there is donation to track
         padding: const EdgeInsets.all(16),
         itemCount: _donations.length,
         itemBuilder: (context, index) {
@@ -206,6 +208,42 @@ class TrackDonationsScreen extends StatelessWidget {
           Text(label, style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45)),
           Text(value, style: GoogleFonts.poppins(fontSize: 12, color: valueColor, fontWeight: FontWeight.w600)),
         ],
+      ),
+    );
+  }
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [BoxShadow(color: Colors.purple.withOpacity(0.05), blurRadius: 20)],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.local_shipping_outlined, size: 100, color: Colors.grey[300]),
+            const SizedBox(height: 24),
+            Text("No Donations Yet",
+                style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Text("Start your eco-friendly journey by donating clothes",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(fontSize: 14, color: Colors.black45)),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00B050),
+                minimumSize: const Size(180, 50),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text("Donate Now", style: GoogleFonts.poppins(color: Colors.white)),
+            ),
+          ],
+        ),
       ),
     );
   }
