@@ -4,6 +4,7 @@ import 'package:graduation_project/screens/rewards/rewards_screen.dart';
 import '../../providers/user_provider.dart';
 import '../donate/donate_screen.dart';
 import '../donate/track_donations_screen.dart';
+import '../remake/remake_studio_screen.dart';
 import '../shop/shop_screen.dart';
 import '../profile/profile_screen.dart';
 import 'package:provider/provider.dart';
@@ -72,14 +73,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (userRole == 'Buyer' || userRole == 'Both') ...[
                       Text('Featured Offers', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
-                      _offerCard('Winter Collection', 'Up to 40% off on recycled winter wear', 'assets/winter.jpg'),
+
+                      _offerCard('Browse Collection', 'Sustainable styles, friendly prices', 'assets/winter.jpg',
+                          () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopScreen()));
+                      },
+                      ),
                       const SizedBox(height: 12),
                     ],
                     if (userRole == 'Donor' || userRole == 'Both') ...[
                       if (userRole == 'Donor')
                         Text('Featured Offers', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
-                      _offerCard('Donate & Earn', 'Get 20 bonus points on your next donation', 'assets/donateEarn.jpg'),
+                      _offerCard('Donate & Earn', 'Get 20 bonus points on your next donation', 'assets/donateEarn.jpg',
+                            () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const DonateScreen()));
+                        },
+                      ),
                       const SizedBox(height: 16),
                     ],
                   ],
@@ -106,6 +116,8 @@ class _HomeScreenState extends State<HomeScreen> {
           } else if (label == 'Shop') {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopScreen()));
           } else if (label == 'Remake') {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const RemakeStudioScreen()));
+
           }
           else if (label == 'Profile') {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
@@ -134,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }));
 
       cards.add(_actionCard(Icons.auto_awesome, 'Remake Studio', 'Suggest designs', () {
-        // Navigator.push(context, MaterialPageRoute(builder: (_) => const RemakeStudioScreen()));
+         Navigator.push(context, MaterialPageRoute(builder: (_) => const RemakeStudioScreen()));
       }));
     }
 
@@ -377,13 +389,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _offerCard(String title, String subtitle, String imagePath) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.purple.withOpacity(0.08), blurRadius: 10)],
-      ),
+  Widget _offerCard(String title, String subtitle, String imagePath,VoidCallback onTap) {
+    return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(color: Colors.purple.withOpacity(0.08), blurRadius: 10)],
+          ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -413,7 +427,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 
 }
