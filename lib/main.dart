@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:graduation_project/providers/user_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'package:provider/provider.dart';
 import 'providers/cart_provider.dart';
 void main() => runApp(
-  ChangeNotifierProvider(
-    create: (_) => CartProvider(),
+  MultiProvider(
+    providers: [
+      ChangeNotifierProvider(create: (_) => CartProvider()),
+      ChangeNotifierProvider(create: (_) => UserProvider()),
+    ],
     child: const MaterialApp(
       debugShowCheckedModeBanner: false,
       home: SplashScreen(),

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../providers/user_provider.dart';
 import '../donate/donate_screen.dart';
 import '../donate/track_donations_screen.dart';
 import '../shop/shop_screen.dart';
+import '../profile/profile_screen.dart';
+import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
   final String role; //Buyer, Donor, Both
@@ -17,14 +20,17 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
-    // select item depend on role
+    final userRole = Provider.of<UserProvider>(context).role;
+    //change depend on role
     List<BottomNavigationBarItem> navItems = [
       const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-      if (widget.role == 'Donor' || widget.role == 'Both')
+      if (userRole == 'Donor' || userRole == 'Both')
         const BottomNavigationBarItem(icon: Icon(Icons.checkroom), label: 'Donate'),
-      const BottomNavigationBarItem(icon: Icon(Icons.shopping_bag_outlined), label: 'Shop'),
-      if (widget.role == 'Buyer' || widget.role == 'Both')
+      if (userRole == 'Buyer' || userRole == 'Both')
+        const BottomNavigationBarItem(icon: Icon(Icons.shopping_bag_outlined), label: 'Shop'),
+      if (userRole == 'Buyer' || userRole == 'Both')
         const BottomNavigationBarItem(icon: Icon(Icons.auto_awesome), label: 'Remake'),
+
       const BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
     ];
 
@@ -36,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // header
-              _buildHeader(),
+              _buildHeader(userRole),
 
               const SizedBox(height: 16),
               Padding(
@@ -45,8 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     //Impact st
-                    if (widget.role == 'Donor' || widget.role == 'Both') ...[
-                      _buildImpactCard(),
+                    if (userRole == 'Donor' || userRole == 'Both') ...[                      _buildImpactCard(),
                       const SizedBox(height: 16),
                     ],
                     // Quick action
@@ -57,21 +62,25 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
                       childAspectRatio: 1.3,
-                      children: _buildGridCards(context),
-                    ),
+                      children: _buildGridCards(context, userRole),                    ),
                     _buildAboutUsSection(),
                     const SizedBox(height: 20),
-                    // featured offers
-                    Text('Featured Offers',
-                        style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    _offerCard('Winter Collection', 'Up to 40% off on recycled winter wear', 'assets/winter.jpg'),
-                    const SizedBox(height: 12),
-                    if (widget.role != 'Buyer')
-                      _offerCard('Donate & Earn', 'Get 20 bonus points on your next donation', 'assets/donateEarn.jpg'),
-                    const SizedBox(height: 16),
                     _buildFeedbackSection(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 50),
+                    // featured offers
+                    if (userRole == 'Buyer' || userRole == 'Both') ...[
+                      Text('Featured Offers', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      _offerCard('Winter Collection', 'Up to 40% off on recycled winter wear', 'assets/winter.jpg'),
+                      const SizedBox(height: 12),
+                    ],
+                    if (userRole == 'Donor' || userRole == 'Both') ...[
+                      if (userRole == 'Donor')
+                        Text('Featured Offers', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      _offerCard('Donate & Earn', 'Get 20 bonus points on your next donation', 'assets/donateEarn.jpg'),
+                      const SizedBox(height: 16),
+                    ],
                   ],
                 ),
               ),
@@ -90,11 +99,15 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (index) {
           // move depend on label
           String label = navItems[index].label!;
+          if (label == 'Home') {}
           if (label == 'Donate') {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const DonateScreen()));
           } else if (label == 'Shop') {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopScreen()));
           } else if (label == 'Remake') {
+          }
+          else if (label == 'Profile') {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
           }
         },
       ),
@@ -102,11 +115,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // build depend on role
-  List<Widget> _buildGridCards(BuildContext context) {
+  List<Widget> _buildGridCards(BuildContext context, String userRole) {
     List<Widget> cards = [];
 
-    // doner option
-    if (widget.role == 'Donor' || widget.role == 'Both') {
+    if (userRole == 'Donor' || userRole == 'Both') {
       cards.add(_actionCard(Icons.checkroom, 'Donate', 'Give a second life', () {
         Navigator.push(context, MaterialPageRoute(builder: (_) => const DonateScreen()));
       }));
@@ -115,24 +127,25 @@ class _HomeScreenState extends State<HomeScreen> {
       }));
     }
 
-    // buyer option
-    if (widget.role == 'Buyer' || widget.role == 'Both') {
+    if (userRole == 'Buyer' || userRole == 'Both') {
       cards.add(_actionCard(Icons.shopping_bag_outlined, 'Shop', 'Recycled fashion', () {
         Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopScreen()));
       }));
+
       cards.add(_actionCard(Icons.auto_awesome, 'Remake Studio', 'Suggest designs', () {
         // Navigator.push(context, MaterialPageRoute(builder: (_) => const RemakeStudioScreen()));
       }));
     }
 
-    // both
-    cards.add(_actionCard(Icons.card_giftcard, 'Rewards', 'Redeem points', () {}));
+    cards.add(_actionCard(Icons.card_giftcard, 'Rewards', 'Redeem points', () {
+      // Navigate to Rewards
+    }));
 
     return cards;
   }
 
 
-  Widget _buildHeader() {
+  Widget _buildHeader(String userRole) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
@@ -147,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text('Hello, ${widget.name}! 👋',
                   style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-              _buildRoleBadge(),
+              _buildRoleBadge(userRole),
               Text('Welcome back to ReCloth',
                   style: GoogleFonts.poppins(fontSize: 13, color: Colors.white70)),
             ],
@@ -158,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildRoleBadge() {
+  Widget _buildRoleBadge(String userRole) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -167,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
         border: Border.all(color: Colors.white30),
       ),
       child: Text(
-        widget.role.toUpperCase(),
+        userRole.toUpperCase(),
         style: GoogleFonts.poppins(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
       ),
     );
