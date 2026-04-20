@@ -5,6 +5,7 @@ import '../../providers/user_provider.dart';
 import 'edit_profile_screen.dart';
 import '../auth/login_screen.dart';
 import 'help_support_screen.dart';
+import 'settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -154,6 +155,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const Divider(),
           _optionTile("Help & Support", Icons.help_outline, Colors.green, () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpSupportScreen()));
+          }),
+          const Divider(),
+          _optionTile("Settings", Icons.settings_outlined, Colors.grey, () {
+            Navigator.push(context, MaterialPageRoute(
+              builder: (_) => SettingsScreen(role: userRole),
+            ));
           }),
           const Divider(),
           _optionTile("Logout", Icons.logout, Colors.grey, () {
