@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../admin/admin_dashboard.dart';
 import 'role_selection_screen.dart';
 import '../home/home_screen.dart';
 class LoginScreen extends StatefulWidget {
@@ -98,12 +99,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ElevatedButton.icon(
                     // Temporary until I connect Firebase
                     onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => HomeScreen(role: 'Both', name: 'Nadeen'),
-                        ),
-                      );
+                      String email = _emailController.text.trim();
+
+                      if (email == 'Admin@gmail.com') {//ADMIN MAIL
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AdminDashboard()),
+                        );
+                      } else {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => HomeScreen(role: 'Both', name: 'Nadeen'),
+                          ),
+                        );
+                      }
                     },
                     icon: const Icon(Icons.login, color: Colors.white),
                     label: Text('Sign In', style: GoogleFonts.poppins(fontSize: 16, color: Colors.white)),
