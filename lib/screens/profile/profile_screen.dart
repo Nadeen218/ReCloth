@@ -203,7 +203,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text("Change Account Type", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        title: Text("Change Account Type",
+            style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: ["Donor", "Buyer", "Both"].map((role) {
@@ -214,17 +215,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 groupValue: userProvider.role,
                 activeColor: Colors.purple,
                 onChanged: (value) {
-                  userProvider.setRole(value!);
                   Navigator.pop(context);
+                  _showConfirmationDialog(value!);
                 },
               ),
               onTap: () {
-                userProvider.setRole(role);
                 Navigator.pop(context);
+                _showConfirmationDialog(role);
               },
             );
           }).toList(),
         ),
+      ),
+    );
+  }
+
+  void _showConfirmationDialog(String newRole) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+    if (newRole == userProvider.role) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text("Are you sure?",
+            style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Text(
+          "Do you want to change your account type to $newRole?",
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Cancel", style: GoogleFonts.poppins(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              userProvider.setRole(newRole);
+              Navigator.pop(context);
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("Account type updated to $newRole"),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            child: Text("Confirm", style: GoogleFonts.poppins(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
