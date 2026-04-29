@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'login_screen.dart';
 import 'role_selection_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RegisterScreen extends StatefulWidget {
   final String role;
@@ -22,6 +24,52 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String get _roleLabel {
     if (widget.role == 'Both') return 'Donor & Buyer';
     return widget.role;
+  }
+  Future<void> _signUp() async {
+    // Loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.purple)),
+    );
+
+    try {
+      // create account in Firebase Authentication
+      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      //save additional data in firestore
+      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+        'uid': userCredential.user!.uid,
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'address': _addressController.text.trim(),
+        'role': widget.role, //role who came from role selection screen
+        'createdAt': DateTime.now(),
+      });
+
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      //move to home or login screen
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account Created Successfully!')),
+      );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+
+    } on FirebaseAuthException catch (e) {
+      Navigator.pop(context); //close loading
+      String message = "An error occurred";
+      if (e.code == 'weak-password') message = "The password is too weak.";
+      else if (e.code == 'email-already-in-use') message = "Email already exists.";
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    } catch (e) {
+      Navigator.pop(context);
+      print(e);
+    }
   }
 
   @override
@@ -147,6 +195,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
+                      //to check its not empty
+                      if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
+                        _signUp();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please fill in all fields')),
+                        );
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.purple,

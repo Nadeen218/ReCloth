@@ -1,5 +1,11 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../../providers/user_provider.dart';
+import '../auth/login_screen.dart'; // Ensure this import is correct for Delete Account
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String role;
@@ -17,6 +23,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final currentRole = userProvider.role;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
@@ -34,30 +43,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text('App Preferences',
+                style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54)),
+            const SizedBox(height: 8),
+            _buildCard(
+              children: [
+                _arrowTile('Switch Account Type', Icons.swap_horiz_rounded, Colors.deepPurple, () {
+                  _showAccountTypeDialog(context, currentRole);
+                }),
+              ],
+            ),
+            const SizedBox(height: 24),
+
             Text('Notifications',
                 style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54)),
             const SizedBox(height: 8),
             _buildCard(
               children: [
-                if (widget.role == 'Buyer' || widget.role == 'Both') ...[
+                if (currentRole == 'Buyer' || currentRole == 'Both') ...[
                   _switchTile('Order Updates', 'Get notified about your orders',
                       Icons.shopping_bag_outlined, Colors.blue,
-                      _orderNotifications, (val) => setState(() => _orderNotifications = val)),
+                      _orderNotifications, (val) async {
+                        setState(() => _orderNotifications = val);
+                        //update database in user profile
+                        String uid = FirebaseAuth.instance.currentUser!.uid;
+                        await FirebaseFirestore.instance.collection('users').doc(uid).update({
+                          'settings_order_notifications': val,
+                        });
+
+                        if (val) {
+                          await FirebaseMessaging.instance.subscribeToTopic("orders");
+                        } else {
+                          await FirebaseMessaging.instance.unsubscribeFromTopic("orders");
+                        }
+                      }),
                   const Divider(),
                 ],
-                if (widget.role == 'Donor' || widget.role == 'Both') ...[
+                if (currentRole == 'Donor' || currentRole == 'Both') ...[
                   _switchTile('Donation Updates', 'Track your donation status',
                       Icons.volunteer_activism_outlined, Colors.green,
-                      _donationNotifications, (val) => setState(() => _donationNotifications = val)),
+                      _donationNotifications, (val) async {
+                        setState(() => _donationNotifications = val);
+                        String uid = FirebaseAuth.instance.currentUser!.uid;
+                        await FirebaseFirestore.instance.collection('users').doc(uid).update({
+                          'settings_donation_notifications': val,
+                        });
+
+                        if (val) {
+                          await FirebaseMessaging.instance.subscribeToTopic("donations");
+                        } else {
+                          await FirebaseMessaging.instance.unsubscribeFromTopic("donations");
+                        }
+                      }),
                   const Divider(),
                   _switchTile('Remake Studio', 'New items needing your ideas',
                       Icons.auto_awesome, Colors.purple,
-                      _remakeNotifications, (val) => setState(() => _remakeNotifications = val)),
+                      _remakeNotifications, (val) async {
+                        setState(() => _remakeNotifications = val);
+                        String uid = FirebaseAuth.instance.currentUser!.uid;
+                        await FirebaseFirestore.instance.collection('users').doc(uid).update({
+                          'settings_remake_notifications': val,
+                        });
+
+                        if (val) {
+                          await FirebaseMessaging.instance.subscribeToTopic("remake");
+                        } else {
+                          await FirebaseMessaging.instance.unsubscribeFromTopic("remake");
+                        }
+                      }),
                   const Divider(),
                 ],
                 _switchTile('Promotions & Offers', 'Deals and special offers',
                     Icons.local_offer_outlined, Colors.orange,
-                    _promotionNotifications, (val) => setState(() => _promotionNotifications = val)),
+                    _promotionNotifications, (val) async {
+                      setState(() => _promotionNotifications = val);
+                      String uid = FirebaseAuth.instance.currentUser!.uid;
+                      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+                        'settings_promo_notifications': val,
+                      });
+
+                      if (val) {
+                        await FirebaseMessaging.instance.subscribeToTopic("promotions");
+                      } else {
+                        await FirebaseMessaging.instance.unsubscribeFromTopic("promotions");
+                      }
+                    }),
               ],
             ),
             const SizedBox(height: 24),
@@ -89,12 +159,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 _arrowTile('Privacy Policy', Icons.privacy_tip_outlined, Colors.grey, () {
                   _showTextDialog('Privacy Policy',
-                      'ReCloth is committed to protecting your privacy. We collect only the information necessary to provide our services. Your personal data is never sold to third parties. All data is stored securely and encrypted. You may request deletion of your account and data at any time.');
+                      'ReCloth is committed to protecting your privacy. Data is encrypted and secure.');
                 }),
                 const Divider(),
                 _arrowTile('Terms & Conditions', Icons.description_outlined, Colors.grey, () {
                   _showTextDialog('Terms & Conditions',
-                      'By using ReCloth, you agree to donate or purchase pre-loved clothing in good faith. All sales are final unless the item does not match its description. ReCloth reserves the right to remove listings that violate our community standards. Users must be 13 years or older to use this app.');
+                      'By using ReCloth, you agree to our community standards and donation policies.');
                 }),
               ],
             ),
@@ -116,6 +186,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+
+  // Helper Widgets
 
   Widget _buildCard({required List<Widget> children}) {
     return Container(
@@ -158,54 +230,95 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showChangePasswordDialog() {
-    final currentPasswordController = TextEditingController();
-    final newPasswordController = TextEditingController();
-    final confirmPasswordController = TextEditingController();
+  Widget _dialogTextField(TextEditingController controller, String hint, bool obscure) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: GoogleFonts.poppins(fontSize: 13),
+        filled: true,
+        fillColor: Colors.grey[100],
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+      ),
+    );
+  }
 
+  // Logic & Dialogs
+
+  void _showAccountTypeDialog(BuildContext context, String currentRole) {
+    String selectedRole = currentRole;
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Switch Account Type', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _roleOption('Buyer', 'I want to shop only', Icons.shopping_bag, selectedRole, (val) {
+                setDialogState(() => selectedRole = val!);
+              }),
+              _roleOption('Donor', 'I want to donate only', Icons.volunteer_activism, selectedRole, (val) {
+                setDialogState(() => selectedRole = val!);
+              }),
+              _roleOption('Both', 'I want to do both', Icons.all_inclusive, selectedRole, (val) {
+                setDialogState(() => selectedRole = val!);
+              }),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
+              onPressed: () async {
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(FirebaseAuth.instance.currentUser!.uid)
+                    .update({'role': selectedRole});
+                if (mounted) {
+                  Provider.of<UserProvider>(context, listen: false).setRole(selectedRole);
+                  Navigator.pop(context);
+                }
+              },
+              child: Text('Confirm', style: const TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _roleOption(String value, String subtitle, IconData icon, String groupValue, ValueChanged<String?> onChanged) {
+    return RadioListTile<String>(
+      value: value,
+      groupValue: groupValue,
+      onChanged: onChanged,
+      activeColor: Colors.deepPurple,
+      title: Text(value, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold)),
+      subtitle: Text(subtitle, style: GoogleFonts.poppins(fontSize: 11)),
+      secondary: Icon(icon, color: Colors.deepPurple, size: 20),
+    );
+  }
+
+  void _showChangePasswordDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Change Password', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _dialogTextField(currentPasswordController, 'Current Password', true),
-            const SizedBox(height: 12),
-            _dialogTextField(newPasswordController, 'New Password', true),
-            const SizedBox(height: 12),
-            _dialogTextField(confirmPasswordController, 'Confirm New Password', true),
-          ],
-        ),
+        title: Text('Reset Password', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Text('A reset link will be sent to your registered email.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
           ElevatedButton(
-            onPressed: () {
-              if (currentPasswordController.text.isEmpty ||
-                  newPasswordController.text.isEmpty ||
-                  confirmPasswordController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Please fill in all fields!', style: GoogleFonts.poppins()), backgroundColor: Colors.red),
-                );
-                return;
-              }
-              if (newPasswordController.text != confirmPasswordController.text) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Passwords do not match!', style: GoogleFonts.poppins()), backgroundColor: Colors.red),
-                );
-                return;
-              }
+            onPressed: () async {
+              await FirebaseAuth.instance.sendPasswordResetEmail(email: FirebaseAuth.instance.currentUser!.email!);
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Password changed successfully!', style: GoogleFonts.poppins()), backgroundColor: Colors.green),
-              );
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email Sent!')));
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            child: Text('Save', style: GoogleFonts.poppins(color: Colors.white)),
+            child: Text('Send', style: const TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
           ),
         ],
       ),
@@ -217,51 +330,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Change $fieldName', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        title: Text('Change $fieldName'),
         content: _dialogTextField(controller, hint, false),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
           ElevatedButton(
-            onPressed: () {
-              if (controller.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Please enter your $fieldName!', style: GoogleFonts.poppins()), backgroundColor: Colors.red),
-                );
-                return;
-              }
+            onPressed: () async {
+              await _updateUserField(fieldName, controller.text.trim());
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('$fieldName updated successfully!', style: GoogleFonts.poppins()), backgroundColor: Colors.green),
-              );
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            child: Text('Save', style: GoogleFonts.poppins(color: Colors.white)),
+            child: Text('Save', style: const TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
           ),
         ],
       ),
     );
   }
 
+  Future<void> _updateUserField(String fieldName, String newValue) async {
+    try {
+      String uid = FirebaseAuth.instance.currentUser!.uid;
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        fieldName.toLowerCase().replaceAll(' ', '_'): newValue,
+      });
+      if (fieldName == 'Email') await FirebaseAuth.instance.currentUser!.updateEmail(newValue);
+    } catch (e) {
+      debugPrint(e.toString());
+    }
+  }
+
   void _showTextDialog(String title, String content) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(title, style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: SingleChildScrollView(
-          child: Text(content, style: GoogleFonts.poppins(fontSize: 13, color: Colors.black54, height: 1.6)),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            child: Text('Close', style: GoogleFonts.poppins(color: Colors.white)),
-          ),
-        ],
+        title: Text(title),
+        content: SingleChildScrollView(child: Text(content)),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('Close'))],
       ),
     );
   }
@@ -270,37 +374,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Delete Account', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.red)),
-        content: Text(
-          'Are you sure you want to delete your account? This action cannot be undone.',
-          style: GoogleFonts.poppins(fontSize: 13, color: Colors.black54),
-        ),
+        title: const Text('Delete Account', style: TextStyle(color: Colors.red)),
+        content: const Text('This action is permanent.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            child: Text('Delete', style: GoogleFonts.poppins(color: Colors.white)),
+            onPressed: () async {
+              String uid = FirebaseAuth.instance.currentUser!.uid;
+              await FirebaseFirestore.instance.collection('users').doc(uid).delete();
+              await FirebaseAuth.instance.currentUser!.delete();
+              Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (r) => false);
+            },
+            child: Text('Delete', style: const TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _dialogTextField(TextEditingController controller, String hint, bool obscure) {
-    return TextField(
-      controller: controller,
-      obscureText: obscure,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: GoogleFonts.poppins(fontSize: 13),
-        filled: true,
-        fillColor: Colors.grey[100],
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
       ),
     );
   }

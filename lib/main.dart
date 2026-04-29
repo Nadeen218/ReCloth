@@ -1,21 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:graduation_project/providers/services/notification_service.dart';
 import 'package:graduation_project/providers/user_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'package:provider/provider.dart';
 import 'providers/cart_provider.dart';
-void main() => runApp(
-  MultiProvider(
-    providers: [
-      ChangeNotifierProvider(create: (_) => CartProvider()),
-      ChangeNotifierProvider(create: (_) => UserProvider()),
-    ],
-    child: const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: SplashScreen(),
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+//after firebase
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  await NotificationService.initialize();
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+      ],
+      child: const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: SplashScreen(),
+      ),
     ),
-  ),
-);
+  );
+}
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -77,7 +90,7 @@ class _SplashScreenState extends State<SplashScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Image.asset('assets/re.png', width: 750, height: 330),
-                   Text(
+                Text(
                   'Because Every Piece Tells a Story',
                   style: GoogleFonts.pacifico(
                     fontSize: 25,

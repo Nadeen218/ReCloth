@@ -1,6 +1,11 @@
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'donation_submitted_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DonateScreen extends StatefulWidget {
   const DonateScreen({super.key});
@@ -12,14 +17,17 @@ class DonateScreen extends StatefulWidget {
 class _DonateScreenState extends State<DonateScreen> {
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
-  final _notesController = TextEditingController();
 
   String? _selectedCategory;
   String? _selectedCondition;
   String? _selectedOption;
-  bool _imageUploaded = false; // Tracks if the user has simulated an image upload
+  File? _pickedImage;
+  final ImagePicker _picker = ImagePicker();
+  bool _isUploading = false;
 
-  // Category list with specific pricing for each item type
+  // Constants for environmental impact calculation
+  final double _co2PerItem = 2.5; // Each donated item saves ~2.5kg of CO2
+
   final List<Map<String, dynamic>> _categories = [
     {'name': '👕 Tops & T-Shirts', 'price': 3},
     {'name': '👖 Bottoms & Jeans', 'price': 5},
@@ -41,9 +49,135 @@ class _DonateScreenState extends State<DonateScreen> {
     {'emoji': '❤️', 'title': 'Full Donation', 'desc': 'Help the environment', 'points': 'Earns 20 points'},
   ];
 
-  // Logic to determine if a photo is mandatory based on the selected reward option
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 70,
+    );
+
+    if (image != null) {
+      setState(() {
+        _pickedImage = File(image.path);
+      });
+    }
+  }
+
+  Future<String?> _uploadImage(File image) async {
+    try {
+      String fileName = 'donations/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      Reference ref = FirebaseStorage.instance.ref().child(fileName);
+      UploadTask uploadTask = ref.putFile(image);
+      TaskSnapshot snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      return null;
+    }
+  }
+
   bool _isImageRequired() {
-    return _selectedOption == 'Symbolic Payment' ;
+    return _selectedOption == 'Symbolic Payment';
+  }
+
+  /// Main function to submit donation and update user statistics for Admin Dashboard
+  Future<void> _submitDonation() async {
+    if (_isImageRequired() && _pickedImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please upload a photo to proceed'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    if (_selectedCategory == null || _selectedCondition == null || _selectedOption == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please complete all fields'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    setState(() => _isUploading = true);
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.purple)),
+    );
+
+    try {
+      String? imageUrl;
+      if (_pickedImage != null) {
+        imageUrl = await _uploadImage(_pickedImage!);
+      }
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      // Logic: Full Donation grants more points than Symbolic Payment
+      int pointsToEarn = _selectedOption == 'Full Donation' ? 20 : 10;
+
+      // 1. Save the donation request to 'donations' collection
+      await FirebaseFirestore.instance.collection('donations').add({
+        'userId': user.uid,
+        'donorName': _nameController.text,
+        'address': _addressController.text,
+        'category': _selectedCategory,
+        'condition': _selectedCondition,
+        'option': _selectedOption,
+        'imageUrl': imageUrl,
+        'status': 'Pending',
+        'createdAt': FieldValue.serverTimestamp(),
+        'pointsEarned': pointsToEarn,
+        'co2Saved': _co2PerItem, // Track individual donation impact
+      });
+
+      // 2. Update User Document for real-time Admin Dashboard stats
+      final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        DocumentSnapshot snapshot = await transaction.get(userRef);
+
+        if (snapshot.exists) {
+          // Increment existing user statistics
+          transaction.update(userRef, {
+            'totalDonations': FieldValue.increment(1), // Counter for "Items Recycled"
+            'points': FieldValue.increment(pointsToEarn),
+            'co2Saved': FieldValue.increment(_co2PerItem), // Aggregated CO2 for Dashboard
+            'status': 'Active',
+            'lastActivity': FieldValue.serverTimestamp(),
+          });
+        } else {
+          // Create new user record if it doesn't exist (first-time donor)
+          transaction.set(userRef, {
+            'userName': _nameController.text,
+            'email': user.email,
+            'totalDonations': 1,
+            'points': pointsToEarn,
+            'co2Saved': _co2PerItem,
+            'totalPaid': 0.0,
+            'status': 'Active',
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+      });
+
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      // Navigate to Success Screen
+      Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => DonationSubmittedScreen(pointsEarned: pointsToEarn))
+      );
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Submission failed: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
   }
 
   @override
@@ -73,21 +207,18 @@ class _DonateScreenState extends State<DonateScreen> {
             children: [
               Text('Donation Details', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 20),
-
               _buildLabel('Full Name'),
-              TextField(decoration: _inputDecoration('Nadeen'), controller: _nameController),
+              TextField(decoration: _inputDecoration('Your Name'), controller: _nameController),
               const SizedBox(height: 16),
-
               _buildLabel('Pickup Address'),
               Row(
                 children: [
-                  Expanded(child: TextField(decoration: _inputDecoration('Palestine'), controller: _addressController)),
+                  Expanded(child: TextField(decoration: _inputDecoration('Address'), controller: _addressController)),
                   const SizedBox(width: 8),
                   _buildIconBtn(Icons.location_on_outlined),
                 ],
               ),
               const SizedBox(height: 16),
-
               _buildLabel('Clothing Category'),
               DropdownButtonFormField<String>(
                 value: _selectedCategory,
@@ -100,7 +231,6 @@ class _DonateScreenState extends State<DonateScreen> {
                 onChanged: (val) => setState(() => _selectedCategory = val),
               ),
               const SizedBox(height: 16),
-
               _buildLabel('Condition'),
               DropdownButtonFormField<String>(
                 value: _selectedCondition,
@@ -113,21 +243,16 @@ class _DonateScreenState extends State<DonateScreen> {
                 onChanged: (val) {
                   setState(() {
                     _selectedCondition = val;
-                    // Automatically force "Full Donation" if item quality is poor
-                    if ( _selectedCondition == 'Damaged') {
+                    if (_selectedCondition == 'Damaged') {
                       _selectedOption = 'Full Donation';
                     }
                   });
                 },
               ),
               const SizedBox(height: 20),
-
               _buildLabel('Preferred Option'),
-              // Filter out payment options if the item condition isn't good enough
               ..._options.where((option) {
-                if (_selectedCondition == 'Damaged') {
-                  return option['title'] == 'Full Donation';
-                }
+                if (_selectedCondition == 'Damaged') return option['title'] == 'Full Donation';
                 return true;
               }).map((option) => GestureDetector(
                 onTap: () => setState(() => _selectedOption = option['title']),
@@ -148,7 +273,6 @@ class _DonateScreenState extends State<DonateScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('${option['emoji']} ${option['title']}', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold)),
-                            // Display dynamic pricing if Symbolic Payment is chosen
                             Text(
                               (option['title'] == 'Symbolic Payment' && _selectedCategory != null)
                                   ? 'You will get ${_categories.firstWhere((c) => c['name'] == _selectedCategory)['price']} NIS for this item'
@@ -163,56 +287,47 @@ class _DonateScreenState extends State<DonateScreen> {
                   ),
                 ),
               )),
-
               const SizedBox(height: 16),
-
-              // Image picker section with conditional validation labels
               Row(
                 children: [
                   _buildLabel('Photos'),
                   const SizedBox(width: 4),
                   Text(_isImageRequired() ? '(Required)' : '(Optional)',
-                      style: GoogleFonts.poppins(fontSize: 11, color: _isImageRequired() ? Colors.red : Colors.black45, fontWeight: _isImageRequired() ? FontWeight.bold : FontWeight.normal)),
+                      style: GoogleFonts.poppins(fontSize: 11, color: _isImageRequired() ? Colors.red : Colors.black45)),
                 ],
               ),
               const SizedBox(height: 6),
               GestureDetector(
-                onTap: () => setState(() => _imageUploaded = true), // Placeholder for actual image picking logic
+                onTap: _pickImage,
                 child: Container(
-                  height: 120, width: double.infinity,
+                  height: 150, width: double.infinity,
                   decoration: BoxDecoration(
-                    color: _imageUploaded ? Colors.green[50] : Colors.white,
-                    border: Border.all(color: _imageUploaded ? Colors.green : Colors.grey.shade300, style: BorderStyle.solid),
+                    color: Colors.grey[100],
+                    border: Border.all(color: _pickedImage != null ? Colors.green : Colors.grey.shade300),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Center(
+                  child: _pickedImage != null
+                      ? ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.file(_pickedImage!, fit: BoxFit.cover),
+                  )
+                      : Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(_imageUploaded ? Icons.check_circle : Icons.upload_outlined, color: _imageUploaded ? Colors.green : Colors.grey, size: 32),
+                        const Icon(Icons.upload_outlined, color: Colors.grey, size: 32),
                         const SizedBox(height: 8),
-                        Text(_imageUploaded ? 'Image Uploaded' : 'Click to upload PNG, JPG', style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45)),
+                        Text('Click to upload item photo', style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45)),
                       ],
                     ),
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
-              // Final submission with validation check
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Block submission if a required photo is missing
-                    if (_isImageRequired() && !_imageUploaded) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please upload a photo to proceed'), backgroundColor: Colors.red),
-                      );
-                      return;
-                    }
-                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DonationSubmittedScreen()));
-                  },
+                  onPressed: _isUploading ? null : _submitDonation,
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.purple, padding: const EdgeInsets.symmetric(vertical: 14)),
                   child: Text('Submit Donation Request', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
@@ -224,16 +339,13 @@ class _DonateScreenState extends State<DonateScreen> {
     );
   }
 
-  // UI Helper: Common input field decoration
   InputDecoration _inputDecoration(String hint) => InputDecoration(
     hintText: hint, filled: true, fillColor: Colors.grey[100],
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
   );
 
-  // UI Helper: Label style for form fields
   Widget _buildLabel(String text) => Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(text, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500)));
 
-  // UI Helper: Square icon button for location
   Widget _buildIconBtn(IconData icon) => Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade300)), child: Icon(icon, color: Colors.purple, size: 20));
 }

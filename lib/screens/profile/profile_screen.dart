@@ -1,11 +1,13 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/user_provider.dart';
 import 'edit_profile_screen.dart';
 import '../auth/login_screen.dart';
 import 'help_support_screen.dart';
 import 'settings_screen.dart';
+import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,106 +17,124 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  int donationCount = 5;
-  int purchaseCount = 3;
-  int points = 150;
-  int ordersCount = 3;
+
+  // Stream to listen to real-time user data from Firestore
+  Stream<DocumentSnapshot> _userStatsStream() {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(FirebaseAuth.instance.currentUser!.uid)
+        .snapshots();
+  }
 
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
-    final userRole = userProvider.role;
+    final String userRole = userProvider.role;
+    final String userName = userProvider.name;
+    final String userEmail = userProvider.email;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Text("My Profile",
-            style: GoogleFonts.poppins(color: Colors.black, fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        title: Text(
+          "My Profile",
+          style: GoogleFonts.poppins(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined, color: Colors.purple),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const EditProfileScreen()),
-              );
-            },
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen())),
           )
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            _buildHeader(userRole),
-            const SizedBox(height: 24),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: _userStatsStream(),
+        builder: (context, snapshot) {
+          // Initialize counters
+          int donations = 0;
+          int purchases = 0;
+          int points = 0;
 
-            _buildStatsSection(userRole),
-            const SizedBox(height: 24),
+          if (snapshot.hasData && snapshot.data!.exists) {
+            var data = snapshot.data!.data() as Map<String, dynamic>;
 
-            _buildProfileOptions(userRole),
-            const SizedBox(height: 30),
-          ],
-        ),
+            // Map the fields from Firestore
+            donations = data['totalDonations'] ?? 0;
+            purchases = data['totalPurchases'] ?? 0; // Ensure this matches your Checkout logic
+            points = data['points'] ?? 0;
+          }
+
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+                _buildHeader(userName, userEmail, userRole),
+                const SizedBox(height: 24),
+
+                // Stats Section focusing only on Donations and Purchases
+                _buildStatsSection(userRole, points, donations, purchases),
+
+                const SizedBox(height: 24),
+                _buildProfileOptions(context, userRole),
+                const SizedBox(height: 30),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildHeader(String userRole) {
+  Widget _buildHeader(String name, String email, String role) {
     return Column(
       children: [
-        Stack(
-          children: [
-            const CircleAvatar(
-              radius: 55,
-              backgroundImage: NetworkImage("https://via.placeholder.com/150"),
-            ),
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen())),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(color: Colors.purple, shape: BoxShape.circle),
-                  child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
-                ),
-              ),
-            )
-          ],
+        const CircleAvatar(
+          radius: 55,
+          backgroundColor: Color(0xFFE1BEE7),
+          child: Icon(Icons.person, size: 50, color: Colors.purple),
         ),
         const SizedBox(height: 12),
-        Text("Nadeen Abu Hilweh", style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold)),
-        Text("nadeenabuhilweh@gmail.com", style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey)),
+        Text(name, style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold)),
+        Text(email, style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey)),
         const SizedBox(height: 10),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(color: Colors.purple.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-          child: Text("Account Type: $userRole",
-              style: GoogleFonts.poppins(fontSize: 12, color: Colors.purple, fontWeight: FontWeight.w600)),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.purple.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            "Account Type: $role",
+            style: GoogleFonts.poppins(fontSize: 12, color: Colors.purple, fontWeight: FontWeight.w600),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildStatsSection(String userRole) {
+  // Updated stats section to show only Purchases, Donations, and Points
+  Widget _buildStatsSection(String role, int points, int donations, int purchases) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          // for buyer or both
-          if (userRole == "Buyer" || userRole == "Both")
-            _buildStatCard("Purchases", purchaseCount.toString(), Icons.shopping_bag_outlined, Colors.blue),
+          // Show Purchases if Buyer or Both
+          if (role == "Buyer" || role == "Both")
+            _buildStatCard("Purchases", purchases.toString(), Icons.shopping_bag_outlined, Colors.blue),
 
-          if (userRole == "Both") const SizedBox(width: 12),
+          if (role == "Both") const SizedBox(width: 12),
 
-          // for donor or both
-          if (userRole == "Donor" || userRole == "Both")
-            _buildStatCard("Donations", donationCount.toString(), Icons.volunteer_activism_outlined, Colors.green),
+          // Show Donations if Donor or Both
+          if (role == "Donor" || role == "Both")
+            _buildStatCard("Donations", donations.toString(), Icons.volunteer_activism_outlined, Colors.green),
 
           const SizedBox(width: 12),
+
+          // Points are shown for all users
           _buildStatCard("Points", points.toString(), Icons.stars_rounded, Colors.orange),
         ],
       ),
@@ -127,8 +147,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10)],
         ),
         child: Column(
           children: [
@@ -142,31 +162,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileOptions(String userRole) {
+  Widget _buildProfileOptions(BuildContext context, String userRole) {
     return Container(
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
       child: Column(
         children: [
-          _optionTile("Switch Account Type", Icons.swap_horiz, Colors.blue, () {
-            _showAccountTypeDialog();
+          _optionTile("Settings", Icons.settings_outlined, Colors.grey, () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsScreen(role: userRole)));
           }),
           const Divider(),
           _optionTile("Help & Support", Icons.help_outline, Colors.green, () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpSupportScreen()));
           }),
           const Divider(),
-          _optionTile("Settings", Icons.settings_outlined, Colors.grey, () {
-            Navigator.push(context, MaterialPageRoute(
-              builder: (_) => SettingsScreen(role: userRole),
-            ));
-          }),
-          const Divider(),
-          _optionTile("Logout", Icons.logout, Colors.grey, () {
+          _optionTile("Logout", Icons.logout, Colors.redAccent, () async {
+            await FirebaseAuth.instance.signOut();
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  (Route<dynamic> route) => false,
+                  (route) => false,
             );
           }),
         ],
@@ -174,7 +189,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _optionTile(String title, IconData icon, Color color, VoidCallback onTap, {String? trailingText}) {
+  Widget _optionTile(String title, IconData icon, Color color, VoidCallback onTap) {
     return ListTile(
       onTap: onTap,
       leading: Container(
@@ -183,94 +198,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Icon(icon, color: color, size: 20),
       ),
       title: Text(title, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500)),
-      trailing: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          if (trailingText != null)
-            Text(trailingText,
-                style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w600)),
-          const SizedBox(width: 8),
-          const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-        ],
-      ),
-    );
-  }
-
-  void _showAccountTypeDialog() {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text("Change Account Type",
-            style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: ["Donor", "Buyer", "Both"].map((role) {
-            return ListTile(
-              title: Text(role, style: GoogleFonts.poppins()),
-              leading: Radio<String>(
-                value: role,
-                groupValue: userProvider.role,
-                activeColor: Colors.purple,
-                onChanged: (value) {
-                  Navigator.pop(context);
-                  _showConfirmationDialog(value!);
-                },
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _showConfirmationDialog(role);
-              },
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  void _showConfirmationDialog(String newRole) {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-
-    if (newRole == userProvider.role) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text("Are you sure?",
-            style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: Text(
-          "Do you want to change your account type to $newRole?",
-          style: GoogleFonts.poppins(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Cancel", style: GoogleFonts.poppins(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () {
-              userProvider.setRole(newRole);
-              Navigator.pop(context);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text("Account type updated to $newRole"),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            child: Text("Confirm", style: GoogleFonts.poppins(color: Colors.white)),
-          ),
-        ],
-      ),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
     );
   }
 }
