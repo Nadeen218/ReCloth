@@ -45,6 +45,7 @@
 *   **Remake Studio**: A unique space dedicated to the creative side of clothing refurbishment and sustainability.
 *   **Rewards Screen**: A gamified area where users can view points and rewards earned through their sustainable actions.
 *   **Admin Dashboard**: A powerful management interface for tracking global statistics, managing inventory, and overseeing donation requests.
+*   **Company Management**: A dedicated interface within the Admin Dashboard to manage service providers, including Cleaning Companies, Tailor Shops (Remake), and Delivery Services, ensuring a professional workflow for refurbishing clothes.
 ---
 
 ## ⚙️ Core Functionalities
@@ -53,6 +54,7 @@
 *   **Real-time Synchronization**: Powered by Firebase Firestore to update order and donation statuses instantly.
 *   **Automated Stock Management**: Inventory levels automatically decrease upon successful purchases.
 *   **State Management**: Centralized app state using the Provider pattern to ensure high performance and clean code.
+*   **Service Provider Integration**: A streamlined logistics flow that connects donation requests with specialized companies for cleaning and repairing, ensuring every item meets quality standards before reselling.
 ---
 
 ## 🛠 Tech Stack & Tools
@@ -95,6 +97,7 @@ To run this project locally, follow these steps:
 * Role-Based Access Control: Implemented logic to distinguish between Admin and User accounts, securing the administrative dashboard.
 * Inventory Management: Developed a system that automatically updates stock levels in Firestore upon successful order placement.
 * Automated Authentication: Implemented a "Stay Logged In" feature using FirebaseAuth.instance.currentUser for a better user experience.
+* Vendor Management System: Designed and implemented a CRUD system for managing external service providers (Companies) to handle the refurbishment phase of the circular economy model
 
 ---
 
