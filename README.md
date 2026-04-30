@@ -8,11 +8,12 @@
 Check out the ReCloth application in action:
 
 <div align="center">
-  <h3>🎥 ReCloth Application Demo</h3>
-  <video src="https://github.com/Nadeen218/Graduation-project/releases/download/v1.0.0/Video.Project.6.mp4" width="100%" controls>
-    Your browser does not support the video tag.
-  </video>
+  <a href="https://github.com/Nadeen218/Graduation-project/releases/download/v1.0.0/Video.Project.6.mp4">
+    <img src="https://img.shields.io/badge/▶_Watch-Project_Demo_Video-blue?style=for-the-badge&logo=github" alt="Watch Video">
+  </a>
+  <br>
 </div>
+
 ---
 
 ## 📱 Project Overview & Screens
