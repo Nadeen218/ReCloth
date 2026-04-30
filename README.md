@@ -7,9 +7,12 @@
 ## 📺 App Demo
 Check out the ReCloth application in action:
 
-<p align="center">
-  <img src="" alt="Recloth Demo" width="300">
-</p>
+<div align="center">
+  <h3>🎥 ReCloth Application Demo</h3>
+  <video src="https://github.com/Nadeen218/Graduation-project/releases/download/v1.0.0/Video.Project.6.mp4" width="100%" controls>
+    Your browser does not support the video tag.
+  </video>
+</div>
 ---
 
 ## 📱 Project Overview & Screens
