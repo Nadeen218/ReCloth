@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Added Firestore
-import 'package:firebase_auth/firebase_auth.dart';    // Added Auth
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../providers/user_provider.dart';
 
 class RewardsScreen extends StatelessWidget {
   const RewardsScreen({super.key});
 
+  // Rewards list configuration
   final List<Map<String, dynamic>> _rewards = const [
     {
       'title': '10% Off Next Purchase',
@@ -65,21 +66,22 @@ class RewardsScreen extends StatelessWidget {
         title: Text('Rewards',
             style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
       ),
-      // Using StreamBuilder to calculate points in real-time
-      body: StreamBuilder<QuerySnapshot>(
+      // UPDATED: Now listening to the USER document directly
+      body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('donations')
-            .where('userId', isEqualTo: currentUser?.uid)
-            .where('status', isEqualTo: 'Sold') // Only count points for sold items
+            .collection('users')
+            .doc(currentUser?.uid)
             .snapshots(),
         builder: (context, snapshot) {
-          int userPoints = 0;
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Colors.purple));
+          }
 
-          if (snapshot.hasData) {
-            // Summing up all pointsEarned from the documents
-            for (var doc in snapshot.data!.docs) {
-              userPoints += (doc['pointsEarned'] as num? ?? 0).toInt();
-            }
+          int userPoints = 0;
+          if (snapshot.hasData && snapshot.data!.exists) {
+            // Fetch points from the 'points' field that Admin updates
+            final userData = snapshot.data!.data() as Map<String, dynamic>;
+            userPoints = (userData['points'] as num? ?? 0).toInt();
           }
 
           return SingleChildScrollView(
@@ -87,17 +89,17 @@ class RewardsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Points Card with dynamic points
+                // Points Card displaying the live data from 'users' collection
                 _buildPointsCard(userPoints, userRole),
 
                 const SizedBox(height: 24),
 
-                // Progress to next reward logic
+                // Progress tracker logic
                 _buildProgressBar(userPoints),
 
                 const SizedBox(height: 24),
 
-                // How to earn points (UI section)
+                // Static UI section for points info
                 Text('How to Earn Points',
                     style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
@@ -110,7 +112,7 @@ class RewardsScreen extends StatelessWidget {
                 ],
                 const SizedBox(height: 24),
 
-                // Redeem Rewards list
+                // Redeemable rewards list
                 Text('Redeem Rewards',
                     style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
@@ -127,7 +129,7 @@ class RewardsScreen extends StatelessWidget {
     );
   }
 
-  // UI Helper Methods
+  // UI Helper Methods (Remain identical to your original design)
 
   Widget _buildPointsCard(int points, String? role) {
     return Container(

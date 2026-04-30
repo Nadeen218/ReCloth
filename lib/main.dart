@@ -92,6 +92,7 @@ class _SplashScreenState extends State<SplashScreen>
                 Image.asset('assets/re.png', width: 750, height: 330),
                 Text(
                   'Because Every Piece Tells a Story',
+                  textAlign: TextAlign.center,
                   style: GoogleFonts.pacifico(
                     fontSize: 25,
                     color: Colors.black45,
