@@ -4,15 +4,13 @@
 
 ---
 
-## 📺 App Demo
-Check out the ReCloth application in action:
+## 📺 App Demo & Screenshots
 
-<div align="center">
-  <a href="https://github.com/Nadeen218/Graduation-project/releases/download/v1.0.0/Video.Project.6.mp4">
-    <img src="https://img.shields.io/badge/▶_Watch-Project_Demo_Video-blue?style=for-the-badge&logo=github" alt="Watch Video">
-  </a>
-  <br>
-</div>
+| **🎥 Feature Demo** | **🖼️ App Screenshots** |
+| :--- | :--- |
+| **Admin Dashboard** <br><br> <video src="https://github.com/user-attachments/assets/a24e4946-8b4b-4ff4-9fba-b1e9e5c61a55" width="220" controls></video> | <img src="https://github.com/user-attachments/assets/ea114718-40c8-49b1-b77c-bcfd7fd4bb22" width="150"> &nbsp; <img src="https://github.com/user-attachments/assets/315c629c-0dc3-4187-b08b-132b35efe8b7" width="150"> <img src="https://github.com/user-attachments/assets/879f1cab-2b52-4545-a99f-e4ce2f2f43f6" width="150"> <img src="https://github.com/user-attachments/assets/7f834852-18a0-480e-aac8-ecd924085b10" width="150"> <img  src="https://github.com/user-attachments/assets/32f059e3-520c-46d9-9be1-fa9f3fda37ca" width="150"> <img  src="https://github.com/user-attachments/assets/4269af2a-24a5-4bdb-9a40-039ba7e95ef6" width="150"> <img src="https://github.com/user-attachments/assets/dcd996e8-a108-420c-be29-4a7270809924" width="150"> <img src="https://github.com/user-attachments/assets/d689d22f-8eae-4f65-9763-e684c47438d8" width="150"> |
+| **🎥 Home Screen (Role Based)** | **🖼️ App Screenshots** |
+| **Home screen** <br><br> <video src="https://github.com/user-attachments/assets/72e65b08-c20d-4210-9ec7-8b4ba6871fd2" width="220" controls></video> | <img src="https://github.com/user-attachments/assets/8a7eeb17-3c7a-45e0-a816-bf95a3001867" width="150"> &nbsp; <img src="https://github.com/user-attachments/assets/27e77c23-fcba-4c38-bd4a-4ca0c60a9662" width="150"> <img src="https://github.com/user-attachments/assets/0013103b-d893-4ae1-bcc7-46cd571b7f93" width="150"> <img src="https://github.com/user-attachments/assets/392f7abe-7ea2-4cce-9434-570d9c3a02ca" width="150"> <br><br> <img src="https://github.com/user-attachments/assets/41d7a286-3269-4d44-9506-75ff93f76808" width="150"> <img src="https://github.com/user-attachments/assets/23e5a801-97dd-4a07-ad3e-0c1bd2334b20" width="150"> <img src="https://github.com/user-attachments/assets/795ceec7-20fb-477f-93d7-eda455e2f849" width="150">  <img src="https://github.com/user-attachments/assets/83128d46-2c7d-47e4-b55b-14f73af40d72" width="150"> |
 
 ---
 
