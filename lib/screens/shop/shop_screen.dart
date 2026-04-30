@@ -325,7 +325,7 @@ class _ShopScreenState extends State<ShopScreen> {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: ['All Types', 'Shirts', 'Jackets', 'Dresses', 'Coats', 'Pants', 'Shoes', 'Mixed Items']
+            children: ['All Types', 'Shirts', 'Formal', 'Dresses', 'Coats', 'Pants', 'Shoes', 'Mixed Items']
                 .map((cat) => _buildQuickChip(cat))
                 .toList(),
           ),

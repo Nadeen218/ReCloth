@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
-import 'package:firebase_auth/firebase_auth.dart';    // Import Auth
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:graduation_project/screens/home/home_screen.dart';
+import 'package:graduation_project/screens/shop/shop_screen.dart';    // Import Auth
 
 class OrderPlacedScreen extends StatefulWidget {
   const OrderPlacedScreen({super.key});
@@ -151,7 +153,11 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                      onPressed: () => Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const HomeScreen(name: '',)),
+                            (route) => false,
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF9C27B0),
                         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -164,7 +170,7 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
-                      onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopScreen())),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.grey),
                         padding: const EdgeInsets.symmetric(vertical: 12),

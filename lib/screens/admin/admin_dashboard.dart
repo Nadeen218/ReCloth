@@ -22,32 +22,31 @@ class _AdminDashboardState extends State<AdminDashboard> {
   String _inventorySearchQuery = '';
   String _selectedInventoryCategory = 'All Types';
 
+
   static const Color _darkBg = Color(0xFF0D1B2A);
   static const Color _cardBg = Color(0xFF1A2332);
   static const Color _accent = Color(0xFF4F8EF7);
 
-  // Firebase instances
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
   final List<String> _fixedCategories = [
-    'All Types', 'Shirts', 'Jackets', 'Dresses', 'Coats', 'Pants', 'Shoes', 'Mixed Items'
+    'All Types', 'Shirts', 'Formal', 'Dresses', 'Coats', 'Pants', 'Shoes', 'Mixed Items'
   ];
 
   final List<String> _donationStatuses = [
     'Request Received', 'Picked Up', 'Cleaning in Progress', 'Ready for Sale', 'Sold'
   ];
 
-  // Streams direct from firebase Firestore
+  // ─── Streams ───────────────────────────────────
   Stream<List<Map<String, dynamic>>> get _usersStream =>
       _db.collection('users').snapshots().map(
               (s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
 
   Stream<List<Map<String, dynamic>>> get _donationsStream =>
-      _db.collection('donations')
-          .snapshots()
-          .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+      _db.collection('donations').snapshots().map(
+              (s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
 
   Stream<List<Map<String, dynamic>>> get _ordersStream =>
       _db.collection('orders')
@@ -59,14 +58,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _db.collection('products').snapshots().map(
               (s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
 
-
   Stream<List<Map<String, dynamic>>> get _remakeStream =>
       _db.collection('remake_suggestions').snapshots().map(
               (s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
 
   Stream<List<Map<String, dynamic>>> get _messagesStream =>
-      _db.collection('messages').orderBy('date', descending: true).snapshots().map(
-              (s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+      _db.collection('support_messages')
+          .orderBy('timestamp', descending: true)
+          .snapshots()
+          .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
 
   Stream<List<Map<String, dynamic>>> get _feedbackStream =>
       _db.collection('feedback')
@@ -75,7 +75,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
 
   // ─────────────────────────────────────────────
-  //  BUILD widget
+  //  BUILD
   // ─────────────────────────────────────────────
 
   @override
@@ -102,24 +102,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
       body: Column(
         children: [
-          // Overview Header
           if (_selectedIndex == 0)
             StreamBuilder<List<Map<String, dynamic>>>(
               stream: _usersStream,
-              builder: (_, usersSnap) => StreamBuilder<List<Map<String, dynamic>>>(
-                stream: _donationsStream,
-                builder: (_, donSnap) => StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: _ordersStream,
-                  builder: (_, ordSnap) => _buildOverviewHeader(
-                    usersSnap.data ?? [],
-                    donSnap.data ?? [],
-                    ordSnap.data ?? [],
+              builder: (_, usersSnap) =>
+                  StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: _donationsStream,
+                    builder: (_, donSnap) =>
+                        StreamBuilder<List<Map<String, dynamic>>>(
+                          stream: _ordersStream,
+                          builder: (_, ordSnap) => _buildOverviewHeader(
+                            usersSnap.data ?? [],
+                            donSnap.data ?? [],
+                            ordSnap.data ?? [],
+                          ),
+                        ),
                   ),
-                ),
-              ),
             ),
 
-          // Tab Bar
           StreamBuilder<List<Map<String, dynamic>>>(
             stream: _donationsStream,
             builder: (_, donSnap) =>
@@ -156,7 +156,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
           ),
 
-          Expanded(child: _buildContent()),
+          Expanded(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: [
+                _buildOverviewContent(),
+                _buildUsersContent(),
+                _buildDonationsContent(),
+                _buildOrdersContent(),
+                _buildInventoryContent(),
+                _buildRemakeContent(),
+                _buildMessagesContent(),
+                _buildWeeklyReport(),
+                _buildRewardsContent(),
+                _buildFeedbackPage(),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -165,20 +181,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
   // ─────────────────────────────────────────────
   //  OVERVIEW HEADER
   // ─────────────────────────────────────────────
+
   Widget _buildOverviewHeader(
       List<Map<String, dynamic>> users,
       List<Map<String, dynamic>> donations,
       List<Map<String, dynamic>> orders,
       ) {
+    int totalItems =
+    users.fold(0, (s, u) => s + ((u['totalDonations'] ?? 0) as int));
 
-    //1. calculate total items that recycled from totaldonation
-    int totalItems = users.fold(0, (s, u) => s + ((u['totalDonations'] ?? 0) as int));
-
-    //2. calculate CO2 total
     double totalCO2 = users.fold(0.0, (s, u) {
       var val = u['co2Saved'] ?? 0;
-      //to convert value to double
-      return s + (val is int ? val.toDouble() : val);
+      return s + (val is int ? val.toDouble() : val as double);
     });
 
     return Container(
@@ -191,15 +205,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
           _buildStatCard(
             'New Donations',
             '${donations.where((d) {
-              // 1. Check if the status is 'Request Received'
               bool isNewRequest = d['status'] == 'Request Received';
-
-              // 2. Check if it was created within the last 7 days
-              final DateTime sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+              final DateTime sevenDaysAgo =
+              DateTime.now().subtract(const Duration(days: 7));
               final timestamp = d['createdAt'];
-              bool isWithinThisWeek = timestamp is Timestamp && timestamp.toDate().isAfter(sevenDaysAgo);
-
-              // Return true only if both conditions are met
+              bool isWithinThisWeek = timestamp is Timestamp &&
+                  timestamp.toDate().isAfter(sevenDaysAgo);
               return isNewRequest && isWithinThisWeek;
             }).length}',
             Icons.volunteer_activism,
@@ -232,15 +243,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _miniImpactInfo(String label, String value) => Column(children: [
-    Text(label,
-        style: GoogleFonts.poppins(fontSize: 10, color: Colors.white70)),
-    Text(value,
-        style: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.greenAccent)),
-  ]);
+  Widget _miniImpactInfo(String label, String value) =>
+      Column(children: [
+        Text(label,
+            style: GoogleFonts.poppins(fontSize: 10, color: Colors.white70)),
+        Text(value,
+            style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.greenAccent)),
+      ]);
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Expanded(
@@ -286,7 +298,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
             Icon(icon, size: 18, color: isSelected ? _accent : Colors.white54),
             if (badgeCount > 0)
               Positioned(
-                right: -5, top: -5,
+                right: -5,
+                top: -5,
                 child: Container(
                   padding: const EdgeInsets.all(3),
                   decoration: const BoxDecoration(
@@ -315,99 +328,76 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   // ─────────────────────────────────────────────
-  //  CONTENT ROUTER
-  // ─────────────────────────────────────────────
-
-  Widget _buildContent() {
-    switch (_selectedIndex) {
-      case 0: return _buildOverviewContent();
-      case 1: return _buildUsersContent();
-      case 2: return _buildDonationsContent();
-      case 3: return _buildOrdersContent();
-      case 4: return _buildInventoryContent();
-      case 5: return _buildRemakeContent();
-      case 6: return _buildMessagesContent();
-      case 7: return _buildWeeklyReport();
-      case 8: return _buildRewardsContent();
-      case 9: return _buildFeedbackPage();
-      default:
-        return const Center(child: Text("Coming Soon", style: TextStyle(color: Colors.white)));
-    //default: return _buildOverviewContent();
-
-    }
-  }
-
-  // ─────────────────────────────────────────────
   //  OVERVIEW CONTENT
   // ─────────────────────────────────────────────
 
   Widget _buildOverviewContent() {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _donationsStream,
-      builder: (_, donSnap) => StreamBuilder<List<Map<String, dynamic>>>(
-        stream: _ordersStream,
-        builder: (_, ordSnap) {
-          final donations = donSnap.data ?? [];
-          final orders = ordSnap.data ?? [];
+      builder: (_, donSnap) =>
+          StreamBuilder<List<Map<String, dynamic>>>(
+            stream: _ordersStream,
+            builder: (_, ordSnap) {
+              final donations = donSnap.data ?? [];
+              final orders = ordSnap.data ?? [];
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Recent Activity',
-                    style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white)),
-                const SizedBox(height: 12),
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Recent Activity',
+                        style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white)),
+                    const SizedBox(height: 12),
 
-                // Donation section
-                ...donations.take(2).map((d) {
-                  String donorName = d['donorName'] ?? d['donor'] ?? 'Guest Donor';
-                  String itemName = d['item'] ?? d['title'] ?? 'Clothes';
-                  return _activityTile(
-                    Icons.volunteer_activism,
-                    Colors.green,
-                    '$donorName donated $itemName',
-                    d['date'] ?? '',
-                    d,
-                    true,
-                  );
-                }),
+                    ...donations.take(2).map((d) {
+                      String donorName =
+                          d['donorName'] ?? d['donor'] ?? 'Guest Donor';
+                      String itemName = d['item'] ?? d['title'] ?? 'Clothes';
+                      return _activityTile(
+                        Icons.volunteer_activism,
+                        Colors.green,
+                        '$donorName donated $itemName',
+                        d['date'] ?? '',
+                        d,
+                        true,
+                      );
+                    }),
 
-                // Orders section
-                ...orders.take(2).map((o) {
-                  // to make it connect with checkout screen
-                  // 1. user send userName
-                  // 2. user send totalAmount
-                  String buyerName = o['userName'] ?? o['buyer'] ?? 'Anonymous';
-                  String amount = o['totalAmount']?.toString() ?? '0.0';
+                    ...orders.take(2).map((o) {
+                      String buyerName =
+                          o['userName'] ?? o['buyer'] ?? 'Anonymous';
+                      String amount =
+                          o['totalAmount']?.toString() ?? '0.0';
+                      return _activityTile(
+                        Icons.shopping_bag,
+                        Colors.blue,
+                        '$buyerName ordered items (₪$amount)',
+                        '',
+                        o,
+                        false,
+                      );
+                    }),
 
-                  return _activityTile(
-                    Icons.shopping_bag,
-                    Colors.blue,
-                    '$buyerName ordered items (₪$amount)',
-                    '',
-                    o,
-                    false,
-                  );
-                }),
-
-                if (donations.isEmpty && orders.isEmpty)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.only(top: 20),
-                      child: Text("No recent activity", style: TextStyle(color: Colors.white54)),
-                    ),
-                  ),
-              ],
-            ),
-          );
-        },
-      ),
+                    if (donations.isEmpty && orders.isEmpty)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.only(top: 20),
+                          child: Text("No recent activity",
+                              style: TextStyle(color: Colors.white54)),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
     );
   }
+
   Widget _activityTile(IconData icon, Color color, String title, String date,
       Map<String, dynamic> data, bool isDonation) {
     return _buildCard(
@@ -418,36 +408,41 @@ class _AdminDashboardState extends State<AdminDashboard> {
           leading: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle
-            ),
+                color: color.withOpacity(0.1), shape: BoxShape.circle),
             child: Icon(icon, color: color, size: 18),
           ),
-          title: Text(
-            title,
-            style: GoogleFonts.poppins(fontSize: 13, color: Colors.white),
-          ),
+          title: Text(title,
+              style: GoogleFonts.poppins(fontSize: 13, color: Colors.white)),
           subtitle: date.isNotEmpty
-              ? Text(date, style: GoogleFonts.poppins(fontSize: 11, color: Colors.white38))
+              ? Text(date,
+              style: GoogleFonts.poppins(
+                  fontSize: 11, color: Colors.white38))
               : null,
-          trailing: const Icon(Icons.keyboard_arrow_down, color: Colors.white24, size: 16),
-          childrenPadding: const EdgeInsets.only(top: 8, bottom: 8),
+          trailing: const Icon(Icons.keyboard_arrow_down,
+              color: Colors.white24, size: 16),
+          childrenPadding:
+          const EdgeInsets.only(top: 8, bottom: 8),
           expandedCrossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Divider(color: Colors.white10, height: 1),
             const SizedBox(height: 12),
-
-            // to show detail depend on type in the same box
             if (isDonation) ...[
-              _buildDetailRow("Donor:", data['donorName'] ?? data['userName'] ?? 'Guest'),
+              _buildDetailRow(
+                  "Donor:", data['donorName'] ?? data['userName'] ?? 'Guest'),
               _buildDetailRow("Category:", data['category'] ?? 'General'),
               _buildDetailRow("Condition:", data['condition'] ?? 'N/A'),
-              _buildDetailRow("Notes:", data['notes'] ?? 'No notes provided'),
+              _buildDetailRow(
+                  "Notes:", data['notes'] ?? 'No notes provided'),
             ] else ...[
-              _buildDetailRow("Customer:", data['userName'] ?? 'Anonymous'),
-              _buildDetailRow("Total:", "₪${data['totalAmount'] ?? data['totalPrice'] ?? '0.0'}"),
-              _buildDetailRow("Address:", data['address'] ?? 'No address'),
-              _buildDetailRow("Payment:", data['paymentMethod'] ?? 'Cash'),
+              _buildDetailRow(
+                  "Customer:", data['userName'] ?? 'Anonymous'),
+              _buildDetailRow(
+                  "Total:",
+                  "₪${data['totalAmount'] ?? data['totalPrice'] ?? '0.0'}"),
+              _buildDetailRow(
+                  "Address:", data['address'] ?? 'No address'),
+              _buildDetailRow(
+                  "Payment:", data['paymentMethod'] ?? 'Cash'),
             ],
           ],
         ),
@@ -455,7 +450,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-// helper widget for text
   Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
@@ -463,37 +457,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text("$label ",
-              style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF8B00FF), fontWeight: FontWeight.bold)),
+              style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: const Color(0xFF8B00FF),
+                  fontWeight: FontWeight.bold)),
           Expanded(
             child: Text(value,
-                style: GoogleFonts.poppins(fontSize: 12, color: Colors.white70)),
+                style:
+                GoogleFonts.poppins(fontSize: 12, color: Colors.white70)),
           ),
-        ],
-      ),
-    );
-  }
-
-  void _showActivityDetails(Map<String, dynamic> data, bool isDonation) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: _cardBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(isDonation ? "Donation Details" : "Order Details",
-            style: const TextStyle(color: Colors.white, fontSize: 16)),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          _detailRow(isDonation ? Icons.volunteer_activism : Icons.shopping_bag,
-              "Item", data['item'] ?? ''),
-          _detailRow(Icons.person, isDonation ? "Donor" : "Buyer",
-              isDonation ? data['donor'] ?? '' : data['buyer'] ?? ''),
-          _detailRow(Icons.info_outline, "Status", data['status'] ?? ''),
-          if (!isDonation)
-            _detailRow(Icons.payments, "Total", "₪${data['total'] ?? 0}"),
-        ]),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Close"))
         ],
       ),
     );
@@ -507,11 +479,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _usersStream,
       builder: (_, snap) {
-        if (snap.connectionState == ConnectionState.waiting) return _loadingWidget();
+        if (snap.connectionState == ConnectionState.waiting)
+          return _loadingWidget();
 
         final users = (snap.data ?? []).where((u) {
-          // نستخدم userName لضمان القراءة الصحيحة
-          final name = (u['userName'] ?? u['name'] ?? '').toString().toLowerCase();
+          final name =
+          (u['userName'] ?? u['name'] ?? '').toString().toLowerCase();
           final addr = (u['address'] ?? '').toString().toLowerCase();
           return name.contains(_userSearchQuery.toLowerCase()) ||
               addr.contains(_userSearchQuery.toLowerCase());
@@ -526,7 +499,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 hintText: 'Search by name or city...',
                 hintStyle: const TextStyle(color: Colors.white38),
                 prefixIcon: const Icon(Icons.search, color: _accent),
-                filled: true, fillColor: _cardBg,
+                filled: true,
+                fillColor: _cardBg,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none),
@@ -540,14 +514,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
               itemCount: users.length,
               itemBuilder: (_, i) {
                 final user = users[i];
-                String currentStatus = user['status'] ?? (user['active'] == true ? 'Active' : 'Inactive');
+                String currentStatus = user['status'] ??
+                    (user['active'] == true ? 'Active' : 'Inactive');
 
                 return _buildCard(
                   child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12),
                     leading: CircleAvatar(
                       backgroundColor: _accent.withOpacity(0.2),
-                      child: Text((user['userName'] ?? user['name'] ?? '?')[0].toUpperCase(),
+                      child: Text(
+                          (user['userName'] ??
+                              user['name'] ??
+                              '?')[0]
+                              .toUpperCase(),
                           style: const TextStyle(color: _accent)),
                     ),
                     title: Text(user['userName'] ?? user['name'] ?? 'User',
@@ -557,8 +537,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             fontWeight: FontWeight.bold)),
                     subtitle: Text(
                         "Status: $currentStatus | Role: ${user['role'] ?? 'User'}",
-                        style: const TextStyle(color: Colors.white54, fontSize: 11)),
-                    trailing: const Icon(Icons.info_outline, color: _accent),
+                        style: const TextStyle(
+                            color: Colors.white54, fontSize: 11)),
+                    trailing:
+                    const Icon(Icons.info_outline, color: _accent),
                     onTap: () => _showUserDetailsDialog(user),
                   ),
                 );
@@ -569,47 +551,50 @@ class _AdminDashboardState extends State<AdminDashboard> {
       },
     );
   }
+
   void _showUserDetailsDialog(Map<String, dynamic> user) {
     bool isBuyer = user['role'] == 'Buyer' || user['role'] == 'Both';
     bool isDonor = user['role'] == 'Donor' || user['role'] == 'Both';
-
-
-    String accountStatus = user['status'] ?? (user['active'] == true ? "Active" : "Inactive");
+    String accountStatus =
+        user['status'] ?? (user['active'] == true ? "Active" : "Inactive");
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: _cardBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(user['userName'] ?? user['name'] ?? 'User Details',
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           _detailRow(Icons.email, "Email", user['email'] ?? 'N/A'),
           _detailRow(Icons.phone, "Phone", user['phone'] ?? 'N/A'),
           _detailRow(Icons.account_circle, "Status", accountStatus),
-
           const Divider(color: Colors.white12, height: 20),
-
-          // to calculate total paid
           if (isBuyer)
-            _detailRow(Icons.shopping_cart, "Total Paid", "₪${user['totalPaid'] ?? 0}"),
-
-          // to calculate total donation
+            _detailRow(Icons.shopping_cart, "Total Paid",
+                "₪${user['totalPaid'] ?? 0}"),
           if (isDonor) ...[
             _detailRow(Icons.volunteer_activism, "Donations",
                 "${user['totalDonations'] ?? 0} Times"),
             const SizedBox(height: 10),
-            _impactCard("♻️ Items", "${user['totalDonations'] ?? 0}", "Donated"),
+            _impactCard(
+                "♻️ Items", "${user['totalDonations'] ?? 0}", "Donated"),
           ],
         ]),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Close", style: TextStyle(color: _accent)))
+              child: const Text("Close",
+                  style: TextStyle(color: _accent)))
         ],
       ),
     );
   }
+
   // ─────────────────────────────────────────────
   //  DONATIONS
   // ─────────────────────────────────────────────
@@ -618,11 +603,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _donationsStream,
       builder: (_, snap) {
-        if (snap.connectionState == ConnectionState.waiting) return _loadingWidget();
+        if (snap.connectionState == ConnectionState.waiting)
+          return _loadingWidget();
 
-        final filtered = (snap.data ?? []).where((d) =>
-        (d['category'] ?? '').toLowerCase().contains(_donationSearchQuery.toLowerCase()) ||
-            (d['donorName'] ?? '').toLowerCase().contains(_donationSearchQuery.toLowerCase()))
+        final filtered = (snap.data ?? [])
+            .where((d) =>
+        (d['category'] ?? '')
+            .toLowerCase()
+            .contains(_donationSearchQuery.toLowerCase()) ||
+            (d['donorName'] ?? '')
+                .toLowerCase()
+                .contains(_donationSearchQuery.toLowerCase()))
             .toList();
 
         return Column(children: [
@@ -630,16 +621,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
             padding: const EdgeInsets.all(16),
             child: TextField(
               style: const TextStyle(color: Colors.white),
-              decoration: _inputDecoration("Search category or donors...").copyWith(
-                  prefixIcon: const Icon(Icons.search, color: _accent)),
-              onChanged: (val) => setState(() => _donationSearchQuery = val),
+              decoration: _inputDecoration("Search category or donors...")
+                  .copyWith(
+                  prefixIcon:
+                  const Icon(Icons.search, color: _accent)),
+              onChanged: (val) =>
+                  setState(() => _donationSearchQuery = val),
             ),
           ),
           Expanded(
             child: filtered.isEmpty
-                ? _buildEmptyState("No matching donations found", Icons.search_off)
+                ? _buildEmptyState(
+                "No matching donations found", Icons.search_off)
                 : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 16),
               itemCount: filtered.length,
               itemBuilder: (_, i) {
                 final don = filtered[i];
@@ -647,89 +643,135 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
                 return _buildCard(
                   child: InkWell(
-                    onTap: () => _showDonationDetailsDialog(don), // فتح التفاصيل عند الضغط
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    onTap: () =>
+                        _showDonationDetailsDialog(don),
+                    child: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
                         children: [
-                          // to add photo for its donation clothes
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              color: _darkBg,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: don['imageUrl'] != null && don['imageUrl'].toString().isNotEmpty
-                                ? ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.network(
-                                don['imageUrl'],
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                const Icon(Icons.image_not_supported, color: Colors.white24),
+                          Row(
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 60,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  color: _darkBg,
+                                  borderRadius:
+                                  BorderRadius.circular(10),
+                                ),
+                                child: don['imageUrl'] != null &&
+                                    don['imageUrl']
+                                        .toString()
+                                        .isNotEmpty
+                                    ? ClipRRect(
+                                  borderRadius:
+                                  BorderRadius.circular(
+                                      10),
+                                  child: Image.network(
+                                    don['imageUrl'],
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context,
+                                        error,
+                                        stackTrace) =>
+                                    const Icon(
+                                        Icons
+                                            .image_not_supported,
+                                        color: Colors
+                                            .white24),
+                                  ),
+                                )
+                                    : const Icon(
+                                    Icons.inventory_2_outlined,
+                                    color: _accent),
                               ),
-                            )
-                                : const Icon(Icons.inventory_2_outlined, color: _accent),
-                          ),
-                          const SizedBox(width: 12),
-
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
                                   children: [
-                                    Text(don['category'] ?? 'General',
-                                        style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 15)),
-                                    IconButton(
-                                      constraints: const BoxConstraints(),
-                                      padding: EdgeInsets.zero,
-                                      onPressed: () => _editDonation(don['id'], don['notes'] ?? ''),
-                                      icon: const Icon(Icons.edit, color: Colors.orange, size: 18),
+                                    Row(
+                                      mainAxisAlignment:
+                                      MainAxisAlignment
+                                          .spaceBetween,
+                                      children: [
+                                        Text(
+                                            don['category'] ??
+                                                'General',
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight:
+                                                FontWeight.bold,
+                                                fontSize: 15)),
+                                        IconButton(
+                                          constraints:
+                                          const BoxConstraints(),
+                                          padding: EdgeInsets.zero,
+                                          onPressed: () =>
+                                              _editDonation(
+                                                  don['id'],
+                                                  don['notes'] ??
+                                                      ''),
+                                          icon: const Icon(
+                                              Icons.edit,
+                                              color: Colors.orange,
+                                              size: 18),
+                                        ),
+                                      ],
                                     ),
+                                    _typeBadge(isPaid),
                                   ],
                                 ),
-                                _typeBadge(isPaid),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text('Donor: ${don['donorName'] ?? 'Unknown'}',
-                          style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                      Text('Condition: ${don['condition'] ?? 'N/A'}',
-                          style: const TextStyle(color: Colors.white38, fontSize: 11)),
-                      const SizedBox(height: 12),
-
-                      DropdownButtonFormField<String>(
-                        value: _donationStatuses.contains(don['status'])
-                            ? don['status']
-                            : _donationStatuses.first,
-                        dropdownColor: _cardBg,
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
-                        decoration: InputDecoration(
-                          filled: true, fillColor: _darkBg,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide.none),
-                        ),
-                        items: _donationStatuses
-                            .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                            .toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            _db.collection('donations').doc(don['id']).update({'status': val});
-                          }
-                        },
-                      ),
-                    ]),
+                          const SizedBox(height: 12),
+                          Text(
+                              'Donor: ${don['donorName'] ?? 'Unknown'}',
+                              style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13)),
+                          Text(
+                              'Condition: ${don['condition'] ?? 'N/A'}',
+                              style: const TextStyle(
+                                  color: Colors.white38,
+                                  fontSize: 11)),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            value: _donationStatuses
+                                .contains(don['status'])
+                                ? don['status']
+                                : _donationStatuses.first,
+                            dropdownColor: _cardBg,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 12),
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: _darkBg,
+                              contentPadding:
+                              const EdgeInsets.symmetric(
+                                  horizontal: 10),
+                              border: OutlineInputBorder(
+                                  borderRadius:
+                                  BorderRadius.circular(8),
+                                  borderSide: BorderSide.none),
+                            ),
+                            items: _donationStatuses
+                                .map((s) => DropdownMenuItem(
+                                value: s, child: Text(s)))
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                _db
+                                    .collection('donations')
+                                    .doc(don['id'])
+                                    .update({'status': val});
+                              }
+                            },
+                          ),
+                        ]),
                   ),
                 );
               },
@@ -739,75 +781,110 @@ class _AdminDashboardState extends State<AdminDashboard> {
       },
     );
   }
+
   void _showDonationDetailsDialog(Map<String, dynamic> donation) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: _cardBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text("Donation Details",
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            // عرض الصورة
-            if (donation['imageUrl'] != null && donation['imageUrl'].toString().isNotEmpty)
+            if (donation['imageUrl'] != null &&
+                donation['imageUrl'].toString().isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Image.network(
                     donation['imageUrl'],
-                    loadingBuilder: (context, child, progress) => progress == null ? child : const Center(child: CircularProgressIndicator()),
-                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.white24, size: 50),
+                    loadingBuilder: (context, child, progress) =>
+                    progress == null
+                        ? child
+                        : const Center(
+                        child: CircularProgressIndicator()),
+                    errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.broken_image,
+                        color: Colors.white24, size: 50),
                   ),
                 ),
               ),
-
-            _detailRow(Icons.person, "Donor", donation['donorName'] ?? 'Guest'),
-            _detailRow(Icons.category, "Category", donation['category'] ?? 'N/A'),
-            _detailRow(Icons.info_outline, "Condition", donation['condition'] ?? 'N/A'),
-            _detailRow(Icons.volunteer_activism, "Option", donation['option'] ?? 'N/A'),
-            _detailRow(Icons.location_on, "Pickup Address", donation['address'] ?? 'No address provided'),
-
+            _detailRow(
+                Icons.person, "Donor", donation['donorName'] ?? 'Guest'),
+            _detailRow(Icons.category, "Category",
+                donation['category'] ?? 'N/A'),
+            _detailRow(Icons.info_outline, "Condition",
+                donation['condition'] ?? 'N/A'),
+            _detailRow(Icons.volunteer_activism, "Option",
+                donation['option'] ?? 'N/A'),
+            _detailRow(Icons.location_on, "Pickup Address",
+                donation['address'] ?? 'No address provided'),
             const Divider(color: Colors.white12, height: 24),
-
-            const Text("Update Status", style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+            const Text("Update Status",
+                style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(color: _darkBg, borderRadius: BorderRadius.circular(10)),
-              child: DropdownButton<String>(
-                value: _donationStatuses.contains(donation['status']) ? donation['status'] : _donationStatuses[0],
-                dropdownColor: _cardBg,
-                underline: const SizedBox(),
-                isExpanded: true,
-                items: _donationStatuses.map((s) => DropdownMenuItem(
-                    value: s,
-                    child: Text(s, style: const TextStyle(color: Colors.white, fontSize: 12))
-                )).toList(),
-                onChanged: (val) async {
-                  if (val != null) {
-                    await FirebaseFirestore.instance.collection('donations').doc(donation['id']).update({'status': val});
-                    if (mounted) Navigator.pop(context);
-                  }
-                },
+            StatefulBuilder(
+              builder: (ctx, setDlg) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                    color: _darkBg,
+                    borderRadius: BorderRadius.circular(10)),
+                child: DropdownButton<String>(
+                  value: _donationStatuses.contains(donation['status'])
+                      ? donation['status']
+                      : _donationStatuses[0],
+                  dropdownColor: _cardBg,
+                  underline: const SizedBox(),
+                  isExpanded: true,
+                  items: _donationStatuses
+                      .map((s) => DropdownMenuItem(
+                      value: s,
+                      child: Text(s,
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 12))))
+                      .toList(),
+                  onChanged: (val) async {
+                    if (val != null) {
+                      await FirebaseFirestore.instance
+                          .collection('donations')
+                          .doc(donation['id'])
+                          .update({'status': val});
+                      if (mounted) Navigator.pop(context);
+                    }
+                  },
+                ),
               ),
             ),
           ]),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close", style: TextStyle(color: _accent)))
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Close",
+                  style: TextStyle(color: _accent)))
         ],
       ),
     );
   }
+
   Widget _typeBadge(bool isPaid) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
     decoration: BoxDecoration(
-      color: isPaid ? Colors.amber.withOpacity(0.2) : Colors.blue.withOpacity(0.2),
+      color: isPaid
+          ? Colors.amber.withOpacity(0.2)
+          : Colors.blue.withOpacity(0.2),
       borderRadius: BorderRadius.circular(4),
-      border: Border.all(color: isPaid ? Colors.amber : Colors.blue, width: 0.5),
+      border: Border.all(
+          color: isPaid ? Colors.amber : Colors.blue, width: 0.5),
     ),
     child: Text(isPaid ? "Paid Donation" : "Free Donation",
         style: TextStyle(
@@ -822,8 +899,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: _cardBg,
-        title:
-        const Text("Edit Donation Details", style: TextStyle(color: Colors.white)),
+        title: const Text("Edit Donation Details",
+            style: TextStyle(color: Colors.white)),
         content: TextField(
           controller: ctrl,
           style: const TextStyle(color: Colors.white),
@@ -837,7 +914,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
               child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () {
-              _db.collection('donations').doc(docId).update({'notes': ctrl.text});
+              _db
+                  .collection('donations')
+                  .doc(docId)
+                  .update({'notes': ctrl.text});
               Navigator.pop(context);
             },
             child: const Text("Save"),
@@ -851,23 +931,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
   //  ORDERS
   // ─────────────────────────────────────────────
 
-
   Widget _buildOrdersContent() {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _ordersStream,
       builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) return _loadingWidget();
+        if (snap.connectionState == ConnectionState.waiting)
+          return _loadingWidget();
         final orders = snap.data ?? [];
 
-        if (orders.isEmpty) return const Center(child: Text("No orders yet", style: TextStyle(color: Colors.white54)));
+        if (orders.isEmpty)
+          return const Center(
+              child: Text("No orders yet",
+                  style: TextStyle(color: Colors.white54)));
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: orders.length,
           itemBuilder: (context, i) {
             final order = orders[i];
-
-            //to read data came from checkout
             String buyer = order['userName'] ?? 'Anonymous';
             String payment = order['paymentMethod'] ?? 'Cash';
             String total = "₪${order['totalAmount'] ?? '0.0'}";
@@ -880,10 +961,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        child: Text(
-                          buyer,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
+                        child: Text(buyer,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16)),
                       ),
                       _statusBadge(order['status'] ?? 'Pending'),
                     ],
@@ -891,26 +973,33 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   const SizedBox(height: 12),
                   const Divider(color: Colors.white10, height: 1),
                   const SizedBox(height: 12),
-
-                  // عرض المعلومات المسحوبة تلقائياً
                   _buildOrderInfoRow(Icons.person, "Customer:", buyer),
-                  _buildOrderInfoRow(Icons.credit_card, "Payment:", payment),
-                  _buildOrderInfoRow(Icons.location_on, "Address:", order['address'] ?? 'No Address'),
-                  _buildOrderInfoRow(Icons.payments, "Total Amount:", total),
-
+                  _buildOrderInfoRow(
+                      Icons.credit_card, "Payment:", payment),
+                  _buildOrderInfoRow(Icons.location_on, "Address:",
+                      order['address'] ?? 'No Address'),
+                  _buildOrderInfoRow(
+                      Icons.payments, "Total Amount:", total),
                   const SizedBox(height: 16),
-
                   if (order['status'] == 'Pending')
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.purple.withOpacity(0.1),
-                          side: const BorderSide(color: Colors.purple, width: 0.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          backgroundColor:
+                          Colors.purple.withOpacity(0.1),
+                          side: const BorderSide(
+                              color: Colors.purple, width: 0.5),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
-                        onPressed: () => _db.collection('orders').doc(order['id']).update({'status': 'Shipped'}),
-                        child: const Text("Confirm & Ship Order", style: TextStyle(color: Colors.purpleAccent)),
+                        onPressed: () => _db
+                            .collection('orders')
+                            .doc(order['id'])
+                            .update({'status': 'Shipped'}),
+                        child: const Text("Confirm & Ship Order",
+                            style:
+                            TextStyle(color: Colors.purpleAccent)),
                       ),
                     ),
                 ],
@@ -922,7 +1011,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-
   Widget _buildOrderInfoRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -931,13 +1019,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
         children: [
           Icon(icon, size: 14, color: const Color(0xFF9C27B0)),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+          Text(label,
+              style: const TextStyle(
+                  color: Colors.white38, fontSize: 12)),
           const SizedBox(width: 5),
-          Expanded(child: Text(value, style: const TextStyle(color: Colors.white70, fontSize: 12))),
+          Expanded(
+              child: Text(value,
+                  style: const TextStyle(
+                      color: Colors.white70, fontSize: 12))),
         ],
       ),
     );
   }
+
   // ─────────────────────────────────────────────
   //  INVENTORY
   // ─────────────────────────────────────────────
@@ -946,51 +1040,61 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _inventoryStream,
       builder: (_, snap) {
-        if (snap.connectionState == ConnectionState.waiting) return _loadingWidget();
+        if (snap.connectionState == ConnectionState.waiting)
+          return _loadingWidget();
 
         final filtered = (snap.data ?? []).where((item) {
           bool matchCat = _selectedInventoryCategory == 'All Types' ||
               item['category'] == _selectedInventoryCategory;
-          String itemName = (item['name'] ?? item['title'] ?? '').toLowerCase();
-          bool matchSearch = itemName.contains(_inventorySearchQuery.toLowerCase());
+          String itemName =
+          (item['name'] ?? item['title'] ?? '').toLowerCase();
+          bool matchSearch =
+          itemName.contains(_inventorySearchQuery.toLowerCase());
           return matchCat && matchSearch;
         }).toList();
 
         return Column(children: [
-          //search bar
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: TextField(
               style: const TextStyle(color: Colors.white),
-              decoration: _inputDecoration("Search items...").copyWith(
-                  prefixIcon: const Icon(Icons.search, color: _accent)),
-              onChanged: (val) => setState(() => _inventorySearchQuery = val),
+              decoration: _inputDecoration("Search items...")
+                  .copyWith(
+                  prefixIcon:
+                  const Icon(Icons.search, color: _accent)),
+              onChanged: (val) =>
+                  setState(() => _inventorySearchQuery = val),
             ),
           ),
-
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: _fixedCategories.map((cat) {
                 bool isSel = _selectedInventoryCategory == cat;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: FilterChip(
-                    label: Text(cat, style: TextStyle(color: isSel ? Colors.white : Colors.white54, fontSize: 12)),
+                    label: Text(cat,
+                        style: TextStyle(
+                            color: isSel
+                                ? Colors.white
+                                : Colors.white54,
+                            fontSize: 12)),
                     selected: isSel,
-                    onSelected: (_) => setState(() => _selectedInventoryCategory = cat),
+                    onSelected: (_) => setState(
+                            () => _selectedInventoryCategory = cat),
                     backgroundColor: _cardBg,
                     selectedColor: _accent,
                     checkmarkColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                 );
               }).toList(),
             ),
           ),
-
-          // add button
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ElevatedButton.icon(
@@ -1002,93 +1106,126 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   minimumSize: const Size(double.infinity, 50)),
             ),
           ),
-
           const SizedBox(height: 8),
-
-          //to solve overflow
           Expanded(
             child: filtered.isEmpty
-                ? _buildEmptyState("No items found", Icons.inventory_2_outlined)
+                ? _buildEmptyState(
+                "No items found", Icons.inventory_2_outlined)
                 : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 16),
               itemCount: filtered.length,
               itemBuilder: (_, i) {
                 final item = filtered[i];
-
                 final String docId = item['id'] ?? '';
-                bool isAvailable = item['isAvailable'] ?? item['available'] ?? false;
+                bool isAvailable = item['isAvailable'] ??
+                    item['available'] ??
+                    false;
 
                 return GestureDetector(
-                  onTap: () => _editItemDialog(item, docId), // to edit on item in inventory
+                  onTap: () => _editItemDialog(item, docId),
                   child: _buildCard(
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      crossAxisAlignment:
+                      CrossAxisAlignment.center,
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius:
+                          BorderRadius.circular(8),
                           child: Image.network(
-                            item['image'] ?? item['imageUrl'] ?? '',
-                            width: 50, height: 50, fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(Icons.image, color: Colors.white24),
+                            item['image'] ??
+                                item['imageUrl'] ??
+                                '',
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.image,
+                                color: Colors.white24),
                           ),
                         ),
                         const SizedBox(width: 12),
-
                         Expanded(
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                item['name'] ?? item['title'] ?? 'No Name',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                item['name'] ??
+                                    item['title'] ??
+                                    'No Name',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 '${item['category'] ?? 'General'} • ${item['size'] ?? 'N/A'} • Qty: ${item['quantity'] ?? 0}',
-                                style: const TextStyle(color: Colors.white54, fontSize: 11),
+                                style: const TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 11),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
                         ),
-
                         const SizedBox(width: 8),
-                        //control section
                         SizedBox(
                           width: 80,
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                            crossAxisAlignment:
+                            CrossAxisAlignment.end,
                             children: [
                               Text(
                                 '₪${item['price'] ?? 0}',
-                                style: const TextStyle(color: _accent, fontWeight: FontWeight.bold, fontSize: 13),
+                                style: const TextStyle(
+                                    color: _accent,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13),
                               ),
-
                               Transform.scale(
                                 scale: 0.7,
                                 child: Switch(
-                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  materialTapTargetSize:
+                                  MaterialTapTargetSize
+                                      .shrinkWrap,
                                   value: isAvailable,
                                   onChanged: (val) {
-                                    // update status and qunt to make shop work
-                                    _db.collection('products').doc(docId).update({
+                                    _db
+                                        .collection('products')
+                                        .doc(docId)
+                                        .update({
                                       'isAvailable': val,
-                                      'quantity': val ? ( (item['quantity'] != null && item['quantity'] > 0) ? item['quantity'] : 1 ) : 0,
+                                      'quantity': val
+                                          ? ((item['quantity'] !=
+                                          null &&
+                                          item['quantity'] >
+                                              0)
+                                          ? item['quantity']
+                                          : 1)
+                                          : 0,
                                     });
                                   },
                                   activeColor: Colors.green,
                                 ),
                               ),
-
                               GestureDetector(
-                                onTap: () => _db.collection('products').doc(docId).delete(),
+                                onTap: () => _db
+                                    .collection('products')
+                                    .doc(docId)
+                                    .delete(),
                                 child: const Padding(
-                                  padding: EdgeInsets.only(right: 8.0),
-                                  child: Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                                  padding:
+                                  EdgeInsets.only(right: 8.0),
+                                  child: Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.redAccent,
+                                      size: 18),
                                 ),
                               ),
                             ],
@@ -1100,10 +1237,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 );
               },
             ),
-          ),        ]);
+          ),
+        ]);
       },
     );
   }
+
   void _showAddItemDialog() {
     final nameCtrl = TextEditingController();
     final priceCtrl = TextEditingController();
@@ -1112,9 +1251,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     String? selectedCategory;
     String? selectedSize;
-    //variable for gender selection
     String selectedGender = 'All';
-
+    String? localSelectedCondition = 'Excellent';
     File? pickedImage;
     String imageStatus = "No image selected";
 
@@ -1123,7 +1261,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
       builder: (_) => StatefulBuilder(
         builder: (ctx, setDlg) => AlertDialog(
           backgroundColor: _cardBg,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
           title: Text("Add Inventory Item",
               style: GoogleFonts.poppins(
                   color: Colors.white,
@@ -1131,7 +1270,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              // Image Picker Section
               GestureDetector(
                 onTap: () async {
                   final picked = await ImagePicker().pickImage(
@@ -1140,7 +1278,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     maxHeight: 800,
                     imageQuality: 70,
                   );
-
                   if (picked != null) {
                     setDlg(() {
                       pickedImage = File(picked.path);
@@ -1149,7 +1286,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   }
                 },
                 child: Container(
-                  height: 100, width: double.infinity,
+                  height: 100,
+                  width: double.infinity,
                   decoration: BoxDecoration(
                     color: _darkBg,
                     borderRadius: BorderRadius.circular(12),
@@ -1158,13 +1296,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   child: pickedImage != null
                       ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.file(pickedImage!, fit: BoxFit.cover))
+                      child: Image.file(pickedImage!,
+                          fit: BoxFit.cover))
                       : Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.add_a_photo_outlined, color: _accent, size: 30),
+                        const Icon(Icons.add_a_photo_outlined,
+                            color: _accent, size: 30),
                         const SizedBox(height: 8),
-                        Text(imageStatus, style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                        Text(imageStatus,
+                            style: const TextStyle(
+                                color: Colors.white54, fontSize: 10)),
                       ]),
                 ),
               ),
@@ -1192,19 +1334,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
               ]),
               const SizedBox(height: 10),
-
-              // Gender Selection Dropdown
               DropdownButtonFormField<String>(
                 dropdownColor: _cardBg,
                 value: selectedGender,
                 style: const TextStyle(color: Colors.white),
-                decoration: _inputDecoration("Target Audience (Gender)"),
+                decoration:
+                _inputDecoration("Target Audience (Gender)"),
                 items: ['All', 'Men', 'Women', 'Kids']
-                    .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                    .map((g) =>
+                    DropdownMenuItem(value: g, child: Text(g)))
                     .toList(),
-                onChanged: (val) => setDlg(() => selectedGender = val!),
+                onChanged: (val) =>
+                    setDlg(() => selectedGender = val!),
               ),
-
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
                 dropdownColor: _cardBg,
@@ -1212,9 +1354,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 style: const TextStyle(color: Colors.white),
                 decoration: _inputDecoration("Size"),
                 items: ['S', 'M', 'L', 'XL', 'Free Size']
-                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                    .map((s) =>
+                    DropdownMenuItem(value: s, child: Text(s)))
                     .toList(),
-                onChanged: (val) => setDlg(() => selectedSize = val),
+                onChanged: (val) =>
+                    setDlg(() => selectedSize = val),
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
@@ -1224,63 +1368,81 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 decoration: _inputDecoration("Category"),
                 items: _fixedCategories
                     .where((c) => c != 'All Types')
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .map((c) =>
+                    DropdownMenuItem(value: c, child: Text(c)))
                     .toList(),
-                onChanged: (val) => setDlg(() => selectedCategory = val),
+                onChanged: (val) =>
+                    setDlg(() => selectedCategory = val),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                dropdownColor: _cardBg,
+                value: localSelectedCondition,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecoration("Condition"),
+                items: ['New', 'Excellent', 'Good', 'Fair', 'Remade/Upcycled']
+                    .map((c) =>
+                    DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (val) =>
+                    setDlg(() => localSelectedCondition = val),
               ),
               const SizedBox(height: 10),
               TextField(
                   controller: descCtrl,
                   maxLines: 2,
                   style: const TextStyle(color: Colors.white),
-                  decoration: _inputDecoration("Description / Condition")),
+                  decoration: _inputDecoration("Description")),
             ]),
           ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text("Cancel", style: TextStyle(color: Colors.white54))),
-
+                child: const Text("Cancel",
+                    style: TextStyle(color: Colors.white54))),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: _accent),
               onPressed: () async {
-                if (nameCtrl.text.isEmpty || selectedCategory == null) return;
-
+                if (nameCtrl.text.isEmpty ||
+                    selectedCategory == null) return;
                 try {
-                  String imageUrl = 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?q=80&w=200';
-
+                  String imageUrl =
+                      'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?q=80&w=200';
                   if (pickedImage != null) {
-                    final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-                    final ref = _storage.ref().child('inventory').child(fileName);
+                    final fileName =
+                        '${DateTime.now().millisecondsSinceEpoch}.jpg';
+                    final ref = _storage
+                        .ref()
+                        .child('inventory')
+                        .child(fileName);
                     UploadTask uploadTask = ref.putFile(pickedImage!);
                     TaskSnapshot snapshot = await uploadTask;
                     imageUrl = await snapshot.ref.getDownloadURL();
                   }
-
-                  // Saving data to Firestore
                   await _db.collection('products').add({
                     'title': nameCtrl.text,
                     'category': selectedCategory,
                     'type': selectedCategory,
                     'price': double.tryParse(priceCtrl.text) ?? 0.0,
                     'size': selectedSize ?? 'M',
-                    'condition': descCtrl.text.isEmpty ? 'New' : descCtrl.text,
+                    'condition': localSelectedCondition ?? 'Excellent',
                     'isAvailable': true,
-                    'gender': selectedGender,      //to use the selected gender
+                    'gender': selectedGender,
                     'imageUrl': imageUrl,
                     'quantity': int.tryParse(qtyCtrl.text) ?? 1,
-                    'description': descCtrl.text.isEmpty ? 'No description' : descCtrl.text,
+                    'description': descCtrl.text.isEmpty
+                        ? 'No description'
+                        : descCtrl.text,
                     'createdAt': FieldValue.serverTimestamp(),
                   });
-
                   if (mounted) {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text("Item added successfully!"),
-                        backgroundColor: Colors.green));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text("Item added successfully!"),
+                            backgroundColor: Colors.green));
                   }
                 } catch (e) {
-                  print("Full Error: $e");
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                         content: Text("Error: $e"),
@@ -1288,32 +1450,43 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   }
                 }
               },
-              child: const Text("Confirm Add", style: TextStyle(color: Colors.white)),
+              child: const Text("Confirm Add",
+                  style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
       ),
     );
   }
-  Future<void> _editItemDialog(Map<String, dynamic> item, String docId) async {
-    //define fields and full it with item data
-    final nameCtrl = TextEditingController(text: item['title'] ?? item['name'] ?? '');
-    final priceCtrl = TextEditingController(text: (item['price'] ?? 0).toString());
-    final qtyCtrl = TextEditingController(text: (item['quantity'] ?? 1).toString());
-    final descCtrl = TextEditingController(text: item['description'] ?? '');
+
+  Future<void> _editItemDialog(
+      Map<String, dynamic> item, String docId) async {
+    final nameCtrl =
+    TextEditingController(text: item['title'] ?? item['name'] ?? '');
+    final priceCtrl =
+    TextEditingController(text: (item['price'] ?? 0).toString());
+    final qtyCtrl = TextEditingController(
+        text: (item['quantity'] ?? 1).toString());
+    final descCtrl =
+    TextEditingController(text: item['description'] ?? '');
 
     String selectedSize = item['size'] ?? 'M';
     String selectedCategory = item['category'] ?? 'General';
     String selectedGender = item['gender'] ?? 'All';
+    String? localSelectedCondition = item['condition'] ?? 'Excellent';
 
     return showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (ctx, setDlg) => AlertDialog(
           backgroundColor: _cardBg,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
           title: Text("Edit Item Details",
-              style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+              style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18)),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(
@@ -1345,11 +1518,29 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 style: const TextStyle(color: Colors.white),
                 decoration: _inputDecoration("Size"),
                 items: ['S', 'M', 'L', 'XL', 'Free Size']
-                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                    .map((s) =>
+                    DropdownMenuItem(value: s, child: Text(s)))
                     .toList(),
-                onChanged: (val) => setDlg(() => selectedSize = val!),
+                onChanged: (val) =>
+                    setDlg(() => selectedSize = val!),
               ),
               const SizedBox(height: 12),
+              //   use local localSelectedCondition
+              DropdownButtonFormField<String>(
+                dropdownColor: _cardBg,
+                value: localSelectedCondition,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecoration("Condition"),
+                items: ['New', 'Excellent', 'Good', 'Fair', 'Remade/Upcycled']
+                    .map((c) =>
+                    DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (val) =>
+                    setDlg(() => localSelectedCondition = val),
+              ),
+              const SizedBox(height: 16),
+              const Divider(color: Colors.white12, height: 1),
+              const SizedBox(height: 16),
               TextField(
                   controller: descCtrl,
                   maxLines: 2,
@@ -1360,46 +1551,49 @@ class _AdminDashboardState extends State<AdminDashboard> {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text("Cancel", style: TextStyle(color: Colors.white54))),
+                child: const Text("Cancel",
+                    style: TextStyle(color: Colors.white54))),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: _accent),
               onPressed: () async {
-                //edit qun to make it connect with shop
                 int newQty = int.tryParse(qtyCtrl.text) ?? 1;
-
                 try {
                   await _db.collection('products').doc(docId).update({
                     'title': nameCtrl.text,
-                    'price': double.tryParse(priceCtrl.text) ?? 0.0,
+                    'price':
+                    double.tryParse(priceCtrl.text) ?? 0.0,
                     'quantity': newQty,
                     'size': selectedSize,
                     'description': descCtrl.text,
-                    'condition': descCtrl.text.isEmpty ? 'Used' : descCtrl.text,
-                    'isAvailable': newQty > 0, // if qnt more than 0 show in shop
+                    'condition': localSelectedCondition ?? 'Excellent',
+                    'isAvailable': newQty > 0,
                     'status': newQty > 0 ? 'Available' : 'Sold Out',
                     'category': selectedCategory,
                     'type': selectedCategory,
                     'gender': selectedGender,
                     'updatedAt': FieldValue.serverTimestamp(),
                   });
-
                   if (mounted) {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text("Item updated and synced with shop!"),
-                        backgroundColor: Colors.green));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text(
+                                "Item updated and synced with shop!"),
+                            backgroundColor: Colors.green));
                   }
                 } catch (e) {
-                  print("Update Error: $e");
+                  debugPrint("Update Error: $e");
                 }
               },
-              child: const Text("Save Changes", style: TextStyle(color: Colors.white)),
+              child: const Text("Save Changes",
+                  style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
       ),
     );
   }
+
   // ─────────────────────────────────────────────
   //  REMAKE
   // ─────────────────────────────────────────────
@@ -1416,9 +1610,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _remakeStream,
         builder: (_, snap) {
-          if (snap.connectionState == ConnectionState.waiting) return _loadingWidget();
+          if (snap.connectionState == ConnectionState.waiting)
+            return _loadingWidget();
           final items = snap.data ?? [];
-          if (items.isEmpty) return const Center(child: Text("No suggestions from users yet", style: TextStyle(color: Colors.white54)));
+          if (items.isEmpty)
+            return const Center(
+                child: Text("No suggestions from users yet",
+                    style: TextStyle(color: Colors.white54)));
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -1431,14 +1629,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment:
+                      MainAxisAlignment.spaceBetween,
                       children: [
-                        // Overflow
                         Expanded(
                           child: Text(
                             item['itemTitle'] ?? 'No Title',
                             style: const TextStyle(
-                                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1448,20 +1648,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       ],
                     ),
                     const SizedBox(height: 8),
-
                     const Text("User Suggestion:",
-                        style: TextStyle(color: _accent, fontSize: 11, fontWeight: FontWeight.w600)),
-
+                        style: TextStyle(
+                            color: _accent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600)),
                     const SizedBox(height: 4),
                     Text(
                       "Idea: ${item['suggestion'] ?? ''}",
-                      style: const TextStyle(color: Colors.white, fontSize: 13, fontStyle: FontStyle.italic),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
-
                     const SizedBox(height: 12),
-
                     if (item['status'] == 'pending')
                       Row(
                         children: [
@@ -1471,11 +1673,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                     padding: EdgeInsets.zero,
-                                    backgroundColor: Colors.green.withOpacity(0.2),
-                                    side: const BorderSide(color: Colors.green, width: 0.5),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                                onPressed: () => _db.collection('remake_suggestions').doc(item['id']).update({'status': 'Accepted'}),
-                                child: const Text("Accept", style: TextStyle(color: Colors.greenAccent, fontSize: 12)),
+                                    backgroundColor:
+                                    Colors.green.withOpacity(0.2),
+                                    side: const BorderSide(
+                                        color: Colors.green,
+                                        width: 0.5),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                        BorderRadius.circular(8))),
+                                onPressed: () => _db
+                                    .collection('remake_suggestions')
+                                    .doc(item['id'])
+                                    .update({'status': 'Accepted'}),
+                                child: const Text("Accept",
+                                    style: TextStyle(
+                                        color: Colors.greenAccent,
+                                        fontSize: 12)),
                               ),
                             ),
                           ),
@@ -1486,11 +1699,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                     padding: EdgeInsets.zero,
-                                    backgroundColor: Colors.red.withOpacity(0.2),
-                                    side: const BorderSide(color: Colors.red, width: 0.5),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                                onPressed: () => _db.collection('remake_suggestions').doc(item['id']).update({'status': 'Rejected'}),
-                                child: const Text("Reject", style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+                                    backgroundColor:
+                                    Colors.red.withOpacity(0.2),
+                                    side: const BorderSide(
+                                        color: Colors.red, width: 0.5),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                        BorderRadius.circular(8))),
+                                onPressed: () => _db
+                                    .collection('remake_suggestions')
+                                    .doc(item['id'])
+                                    .update({'status': 'Rejected'}),
+                                child: const Text("Reject",
+                                    style: TextStyle(
+                                        color: Colors.redAccent,
+                                        fontSize: 12)),
                               ),
                             ),
                           ),
@@ -1500,10 +1723,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
               );
             },
-          );        },
+          );
+        },
       ),
     );
-  }    void _showAddRemakePostDialog() {
+  }
+
+  void _showAddRemakePostDialog() {
     final nameCtrl = TextEditingController();
     File? selectedImg;
 
@@ -1525,7 +1751,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 decoration: const InputDecoration(
                   labelText: "Item Name",
                   labelStyle: TextStyle(color: Colors.white54),
-                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                  enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white24)),
                 ),
               ),
               const SizedBox(height: 20),
@@ -1535,9 +1762,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       source: ImageSource.gallery,
                       maxWidth: 800,
                       maxHeight: 800,
-                      imageQuality: 70
-                  );
-                  if (img != null) setDlg(() => selectedImg = File(img.path));
+                      imageQuality: 70);
+                  if (img != null)
+                    setDlg(() => selectedImg = File(img.path));
                 },
                 child: Container(
                   height: 150,
@@ -1547,11 +1774,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: selectedImg == null
-                      ? const Icon(Icons.add_a_photo, color: Colors.white24, size: 40)
+                      ? const Icon(Icons.add_a_photo,
+                      color: Colors.white24, size: 40)
                       : ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.file(selectedImg!, fit: BoxFit.cover)
-                  ),
+                      child: Image.file(selectedImg!,
+                          fit: BoxFit.cover)),
                 ),
               ),
             ],
@@ -1559,24 +1787,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text("Cancel", style: TextStyle(color: Colors.white54))
-            ),
+                child: const Text("Cancel",
+                    style: TextStyle(color: Colors.white54))),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: _accent),
               onPressed: () async {
-                if (nameCtrl.text.isEmpty || selectedImg == null) return;
-
+                if (nameCtrl.text.isEmpty || selectedImg == null)
+                  return;
                 FocusScope.of(context).unfocus();
-
                 try {
-                  //to upload photo
-                  final ref = FirebaseStorage.instance.ref()
-                      .child('upcycle_requests/${DateTime.now().millisecondsSinceEpoch}.jpg');
+                  final ref = FirebaseStorage.instance
+                      .ref()
+                      .child(
+                      'upcycle_requests/${DateTime.now().millisecondsSinceEpoch}.jpg');
                   await ref.putFile(selectedImg!);
                   final url = await ref.getDownloadURL();
-
-                  // edit to make it connect with user screen (RemakeStudioScreen)
-                  await _db.collection('upcycle_items').add({ //  upcycle_items
+                  await _db.collection('upcycle_items').add({
                     'title': nameCtrl.text,
                     'imageUrl': url,
                     'issue': 'Needs creative redesign',
@@ -1584,15 +1810,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     'status': 'Open',
                     'timestamp': FieldValue.serverTimestamp(),
                   });
-
                   if (context.mounted) {
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Post added to Upcycle Studio! ✅"))
-                    );
+                        const SnackBar(
+                            content: Text(
+                                "Post added to Upcycle Studio! ✅")));
                   }
                 } catch (e) {
-                  print("Error: $e");
+                  debugPrint("Error: $e");
                 }
               },
               child: const Text("Post Request"),
@@ -1601,24 +1827,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ),
       ),
     );
-  }  // ─────────────────────────────────────────────
+  }
+
+  // ─────────────────────────────────────────────
   //  MESSAGES
   // ─────────────────────────────────────────────
 
   Widget _buildMessagesContent() {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _db.collection('support_messages')
-          .orderBy('timestamp', descending: true)
-          .snapshots()
-          .map((snapshot) => snapshot.docs
-          .map((doc) => {'id': doc.id, ...doc.data()})
-          .toList()),
+      stream: _messagesStream,
       builder: (_, snap) {
-        if (snap.connectionState == ConnectionState.waiting) return _loadingWidget();
+        if (snap.connectionState == ConnectionState.waiting)
+          return _loadingWidget();
         final msgs = snap.data ?? [];
 
         if (msgs.isEmpty) {
-          return const Center(child: Text("No messages yet", style: TextStyle(color: Colors.white54)));
+          return const Center(
+              child: Text("No messages yet",
+                  style: TextStyle(color: Colors.white54)));
         }
 
         return ListView.builder(
@@ -1626,45 +1852,75 @@ class _AdminDashboardState extends State<AdminDashboard> {
           itemCount: msgs.length,
           itemBuilder: (_, i) {
             final msg = msgs[i];
-            bool isReplied = msg['adminReply'] != null && msg['adminReply'].toString().isNotEmpty;
-
-            String name = msg['senderName'] ?? msg['userName'] ?? msg['name'] ?? 'Anonymous';
-            String email = msg['senderEmail'] ?? msg['userEmail'] ?? msg['email'] ?? 'No Email';
+            bool isReplied = msg['adminReply'] != null &&
+                msg['adminReply'].toString().isNotEmpty;
+            String name = msg['senderName'] ??
+                msg['userName'] ??
+                msg['name'] ??
+                'Anonymous';
+            String email = msg['senderEmail'] ??
+                msg['userEmail'] ??
+                msg['email'] ??
+                'No Email';
 
             return _buildCard(
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12),
                 leading: Icon(
-                  isReplied ? Icons.quickreply : (msg['read'] == true ? Icons.mark_email_read : Icons.mark_email_unread),
-                  color: isReplied ? Colors.greenAccent : (msg['read'] == true ? Colors.white24 : _accent),
+                  isReplied
+                      ? Icons.quickreply
+                      : (msg['read'] == true
+                      ? Icons.mark_email_read
+                      : Icons.mark_email_unread),
+                  color: isReplied
+                      ? Colors.greenAccent
+                      : (msg['read'] == true
+                      ? Colors.white24
+                      : _accent),
                 ),
                 title: Text(name,
                     style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14)),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(email, style: const TextStyle(color: _accent, fontSize: 11)),
+                    Text(email,
+                        style: const TextStyle(
+                            color: _accent, fontSize: 11)),
                     const SizedBox(height: 2),
                     Text(msg['message'] ?? '',
-                        style: const TextStyle(color: Colors.white54, fontSize: 12),
+                        style: const TextStyle(
+                            color: Colors.white54, fontSize: 12),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                     if (isReplied)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Text("Replied: ${msg['adminReply']}",
-                            style: const TextStyle(color: Colors.greenAccent, fontSize: 11, fontStyle: FontStyle.italic),
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        child: Text(
+                            "Replied: ${msg['adminReply']}",
+                            style: const TextStyle(
+                                color: Colors.greenAccent,
+                                fontSize: 11,
+                                fontStyle: FontStyle.italic),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
                       ),
                   ],
                 ),
                 trailing: IconButton(
-                  icon: Icon(Icons.reply, color: isReplied ? Colors.white24 : _accent, size: 20),
+                  icon: Icon(Icons.reply,
+                      color: isReplied ? Colors.white24 : _accent,
+                      size: 20),
                   onPressed: () => _showReplyDialog(msg),
                 ),
                 onTap: () {
-                  _db.collection('support_messages').doc(msg['id']).update({'read': true});
+                  _db
+                      .collection('support_messages')
+                      .doc(msg['id'])
+                      .update({'read': true});
                   _showReplyDialog(msg);
                 },
               ),
@@ -1674,19 +1930,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
       },
     );
   }
+
   void _showReplyDialog(Map<String, dynamic> msg) {
     final replyCtrl = TextEditingController();
     if (msg['adminReply'] != null) {
       replyCtrl.text = msg['adminReply'];
     }
-    _db.collection('messages').doc(msg['id']).update({'read': true});
+    _db
+        .collection('support_messages')
+        .doc(msg['id'])
+        .update({'read': true});
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: _cardBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text("Reply to ${msg['name'] ?? ''}",
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: Text("Reply to ${msg['senderName'] ?? msg['name'] ?? ''}",
             style: const TextStyle(color: Colors.white, fontSize: 16)),
         content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1694,42 +1955,51 @@ class _AdminDashboardState extends State<AdminDashboard> {
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(10)),
-                child: Text("User Message: ${msg['message'] ?? ''}",
-                    style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(10)),
+                child: Text(
+                    "User Message: ${msg['message'] ?? ''}",
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 13)),
               ),
               const SizedBox(height: 15),
               TextField(
                   controller: replyCtrl,
                   maxLines: 3,
                   style: const TextStyle(color: Colors.white),
-                  decoration: _inputDecoration("Write your response here...")),
+                  decoration: _inputDecoration(
+                      "Write your response here...")),
             ]),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.white54))),
+              child: const Text("Cancel",
+                  style: TextStyle(color: Colors.white54))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: _accent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
-            ),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10))),
             onPressed: () async {
               if (replyCtrl.text.trim().isEmpty) return;
-
-              await _db.collection('support_messages').doc(msg['id']).update({ // تغيير لـ support_messages
+              await _db
+                  .collection('support_messages')
+                  .doc(msg['id'])
+                  .update({
                 'adminReply': replyCtrl.text.trim(),
                 'repliedAt': FieldValue.serverTimestamp(),
               });
-
               if (mounted) {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text("Reply sent to user! ✅"),
-                    backgroundColor: Colors.green));
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text("Reply sent to user! ✅"),
+                        backgroundColor: Colors.green));
               }
             },
-            child: const Text("Send Response", style: TextStyle(color: Colors.white)),
+            child: const Text("Send Response",
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -1741,8 +2011,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   // ─────────────────────────────────────────────
 
   Widget _buildWeeklyReport() {
-    // Calculates the reference point (exactly 7 days ago from this moment)
-    final DateTime sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+    final DateTime sevenDaysAgo =
+    DateTime.now().subtract(const Duration(days: 7));
 
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _usersStream,
@@ -1757,31 +2027,46 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     final allDonations = donSnap.data ?? [];
                     final allOrders = ordSnap.data ?? [];
 
-                    // DYNAMIC CALCULATION LOGIC
-
-                    // 1. Filter orders for Weekly Revenue (Last 7 days)
+                    // ✅ إصلاح #4: استخدام 'totalAmount' بدلاً من 'total'
                     double weeklyRevenue = allOrders.where((order) {
                       final timestamp = order['createdAt'];
-                      return timestamp is Timestamp && timestamp.toDate().isAfter(sevenDaysAgo);
-                    }).fold(0.0, (sum, item) => sum + (double.tryParse(item['total']?.toString() ?? '0') ?? 0.0));
+                      return timestamp is Timestamp &&
+                          timestamp.toDate().isAfter(sevenDaysAgo);
+                    }).fold(
+                        0.0,
+                            (sum, item) =>
+                        sum +
+                            (double.tryParse(
+                                item['totalAmount']?.toString() ?? '0') ??
+                                0.0));
 
-                    // 2. Filter Weekly Donations count (Last 7 days)
-                    int weeklyDonationsCount = allDonations.where((donation) {
-                      final timestamp = donation['createdAt'];
-                      return timestamp is Timestamp && timestamp.toDate().isAfter(sevenDaysAgo);
-                    }).length;
+                    int weeklyDonationsCount =
+                        allDonations.where((donation) {
+                          final timestamp = donation['createdAt'];
+                          return timestamp is Timestamp &&
+                              timestamp.toDate().isAfter(sevenDaysAgo);
+                        }).length;
 
-                    // 3. Count New Users joined in the last 7 days
                     int newUsersCount = users.where((u) {
                       final joinDate = u['joinDate'];
-                      return joinDate is Timestamp && joinDate.toDate().isAfter(sevenDaysAgo);
+                      return joinDate is Timestamp &&
+                          joinDate.toDate().isAfter(sevenDaysAgo);
                     }).length;
 
-                    // 4. Overall Community Impact (Cumulative data from user profiles)
                     int totalItemsRecycled = users.fold(
-                        0, (sum, user) => sum + (int.tryParse(user['totalDonations']?.toString() ?? '0') ?? 0));
+                        0,
+                            (sum, user) =>
+                        sum +
+                            (int.tryParse(
+                                user['totalDonations']?.toString() ?? '0') ??
+                                0));
                     int totalCO2 = users.fold(
-                        0, (sum, user) => sum + (int.tryParse(user['co2Saved']?.toString() ?? '0') ?? 0));
+                        0,
+                            (sum, user) =>
+                        sum +
+                            (int.tryParse(
+                                user['co2Saved']?.toString() ?? '0') ??
+                                0));
 
                     return SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
@@ -1796,17 +2081,26 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             const SizedBox(height: 16),
                             _buildCard(
                                 child: Column(children: [
-                                  _reportRow("New Users (Last 7 Days)", "+$newUsersCount",
-                                      Icons.person_add, Colors.blue),
+                                  _reportRow(
+                                      "New Users (Last 7 Days)",
+                                      "+$newUsersCount",
+                                      Icons.person_add,
+                                      Colors.blue),
                                   const Divider(color: Colors.white12, height: 20),
-                                  _reportRow("Weekly Revenue", "₪${weeklyRevenue.toStringAsFixed(2)}",
-                                      Icons.monetization_on, Colors.green),
+                                  _reportRow(
+                                      "Weekly Revenue",
+                                      "₪${weeklyRevenue.toStringAsFixed(2)}",
+                                      Icons.monetization_on,
+                                      Colors.green),
                                   const Divider(color: Colors.white12, height: 20),
-                                  _reportRow("Weekly Donations", "$weeklyDonationsCount",
-                                      Icons.check_circle, Colors.orange),
+                                  _reportRow(
+                                      "Weekly Donations",
+                                      "$weeklyDonationsCount",
+                                      Icons.check_circle,
+                                      Colors.orange),
                                   const Divider(color: Colors.white12, height: 20),
-                                  _reportRow("Total CO₂ Impact", "${totalCO2}kg", Icons.eco,
-                                      Colors.teal),
+                                  _reportRow("Total CO₂ Impact", "${totalCO2}kg",
+                                      Icons.eco, Colors.teal),
                                 ])),
                             const SizedBox(height: 16),
                             Text('Overall Community Impact',
@@ -1827,19 +2121,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                     color: Colors.white.withOpacity(0.05)),
                               ),
                               child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.center,
                                   children: [
                                     const Icon(Icons.recycling,
                                         color: Colors.greenAccent, size: 30),
                                     const SizedBox(width: 15),
                                     Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                         children: [
                                           Text("$totalItemsRecycled Items",
                                               style: const TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 20,
-                                                  fontWeight: FontWeight.bold)),
+                                                  fontWeight:
+                                                  FontWeight.bold)),
                                           const Text(
                                               "Successfully Recycled through ReCloth",
                                               style: TextStyle(
@@ -1854,15 +2151,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
           ),
     );
-  }    Widget _reportRow(String label, String value, IconData icon, Color color) {
+  }
+
+  Widget _reportRow(
+      String label, String value, IconData icon, Color color) {
     return Row(children: [
       Icon(icon, color: color, size: 20),
       const SizedBox(width: 12),
-      Text(label, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+      Text(label,
+          style:
+          const TextStyle(color: Colors.white70, fontSize: 13)),
       const Spacer(),
       Text(value,
           style: GoogleFonts.poppins(
-              color: color, fontWeight: FontWeight.bold, fontSize: 14)),
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 14)),
     ]);
   }
 
@@ -1874,7 +2178,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _usersStream,
       builder: (_, snap) {
-        if (snap.connectionState == ConnectionState.waiting) return _loadingWidget();
+        if (snap.connectionState == ConnectionState.waiting)
+          return _loadingWidget();
         final users = snap.data ?? [];
         return ListView(padding: const EdgeInsets.all(16), children: [
           Text('User Rewards & Points',
@@ -1887,23 +2192,26 @@ class _AdminDashboardState extends State<AdminDashboard> {
             child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(u['name'] ?? '',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14)),
-                    Text('${u['points'] ?? 0} Points',
-                        style:
-                        const TextStyle(color: _accent, fontSize: 12)),
-                  ]),
+                  Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(u['name'] ?? '',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14)),
+                        Text('${u['points'] ?? 0} Points',
+                            style: const TextStyle(
+                                color: _accent, fontSize: 12)),
+                      ]),
                   ElevatedButton(
                     onPressed: () => _managePoints(u),
                     style: ElevatedButton.styleFrom(
                         backgroundColor: _accent.withOpacity(0.1),
                         elevation: 0),
                     child: const Text("Manage",
-                        style: TextStyle(color: _accent, fontSize: 11)),
+                        style: TextStyle(
+                            color: _accent, fontSize: 11)),
                   ),
                 ]),
           )),
@@ -1920,7 +2228,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         builder: (ctx, setDlg) => AlertDialog(
           backgroundColor: _cardBg,
           title: Text("Manage Points: ${user['name'] ?? ''}",
-              style: const TextStyle(color: Colors.white, fontSize: 16)),
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 16)),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
             Text("$tempPoints",
                 style: const TextStyle(
@@ -1928,21 +2237,25 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     fontSize: 32,
                     fontWeight: FontWeight.bold)),
             const Text("Current Balance",
-                style: TextStyle(color: Colors.white54, fontSize: 12)),
+                style: TextStyle(
+                    color: Colors.white54, fontSize: 12)),
             const SizedBox(height: 20),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-              _pointAction(
-                  Icons.remove, Colors.red, () => setDlg(() => tempPoints -= 5)),
-              _pointAction(
-                  Icons.add, Colors.green, () => setDlg(() => tempPoints += 5)),
-            ]),
+            Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _pointAction(Icons.remove, Colors.red,
+                          () => setDlg(() => tempPoints -= 5)),
+                  _pointAction(Icons.add, Colors.green,
+                          () => setDlg(() => tempPoints += 5)),
+                ]),
           ]),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text("Cancel")),
             ElevatedButton(
-              onPressed: () => _confirmPointsChange(ctx, user['id'], tempPoints),
+              onPressed: () => _confirmPointsChange(
+                  ctx, user['id'], tempPoints),
               child: const Text("Save Changes"),
             ),
           ],
@@ -1951,21 +2264,26 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  void _confirmPointsChange(BuildContext dlgCtx, String userId, int newPoints) {
+  void _confirmPointsChange(
+      BuildContext dlgCtx, String userId, int newPoints) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: _darkBg,
-        title: const Text("Confirm Action", style: TextStyle(color: Colors.white)),
+        title: const Text("Confirm Action",
+            style: TextStyle(color: Colors.white)),
         content: Text("Update points to $newPoints?",
             style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context), child: const Text("No")),
+              onPressed: () => Navigator.pop(context),
+              child: const Text("No")),
           ElevatedButton(
             onPressed: () {
-              //  Firestore
-              _db.collection('users').doc(userId).update({'points': newPoints});
+              _db
+                  .collection('users')
+                  .doc(userId)
+                  .update({'points': newPoints});
               Navigator.pop(context);
               Navigator.pop(dlgCtx);
             },
@@ -1976,139 +2294,53 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _pointAction(IconData icon, Color color, VoidCallback onTap) {
+  Widget _pointAction(
+      IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(12),
-        decoration:
-        BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+        decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle),
         child: Icon(icon, color: color),
       ),
     );
   }
 
   // ─────────────────────────────────────────────
-  //  SHARED HELPERS
+  //  FEEDBACK
   // ─────────────────────────────────────────────
 
-  Widget _buildCard({required Widget child}) => Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: _cardBg,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.white.withOpacity(0.08)),
-    ),
-    child: child,
-  );
-
-  Widget _buildEmptyState(String message, IconData icon) => Center(
-    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Icon(icon, size: 50, color: Colors.white10),
-      const SizedBox(height: 10),
-      Text(message,
-          style: GoogleFonts.poppins(color: Colors.white38, fontSize: 14)),
-    ]),
-  );
-
-  Widget _loadingWidget() =>
-      const Center(child: CircularProgressIndicator(color: _accent));
-
-  Widget _statusBadge(String status) {
-    Color color = status == 'Accepted'
-        ? Colors.green
-        : status == 'Rejected'
-        ? Colors.red
-        : Colors.orange;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: color, width: 0.5),
-      ),
-      child: Text(status,
-          style: TextStyle(
-              color: color, fontSize: 10, fontWeight: FontWeight.bold)),
-    );
-  }
-
-  Widget _detailRow(IconData icon, String label, String value) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(children: [
-      Icon(icon, size: 16, color: _accent),
-      const SizedBox(width: 8),
-      Text("$label: $value",
-          style: const TextStyle(color: Colors.white70, fontSize: 12)),
-    ]),
-  );
-
-  Widget _impactCard(String emoji, String value, String label) => Container(
-    padding: const EdgeInsets.all(10),
-    decoration:
-    BoxDecoration(color: _darkBg, borderRadius: BorderRadius.circular(10)),
-    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Text(emoji),
-      const SizedBox(width: 8),
-      Text("$value $label",
-          style: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.bold)),
-    ]),
-  );
-
-  InputDecoration _inputDecoration(String label) => InputDecoration(
-    labelText: label,
-    labelStyle: const TextStyle(color: Colors.white38, fontSize: 12),
-    filled: true,
-    fillColor: _darkBg,
-    enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.white10)),
-    focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: _accent)),
-    contentPadding:
-    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-  );
   Widget _buildFeedbackPage() {
-    return StreamBuilder<QuerySnapshot>(
-      // Fetch all feedback sorted by newest
-      stream: FirebaseFirestore.instance
-          .collection('feedback')
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _feedbackStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: _accent));
+          return const Center(
+              child: CircularProgressIndicator(color: _accent));
         }
-
         if (snapshot.hasError) {
           return Center(
               child: Text("Error: ${snapshot.error}",
-                  style: const TextStyle(color: Colors.white))
-          );
+                  style: const TextStyle(color: Colors.white)));
         }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(
               child: Text("No feedback received yet.",
-                  style: TextStyle(color: Colors.white70, fontSize: 16))
-          );
+                  style: TextStyle(
+                      color: Colors.white70, fontSize: 16)));
         }
 
-        final feedbackDocs = snapshot.data!.docs;
+        final feedbackList = snapshot.data!;
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),
-          itemCount: feedbackDocs.length,
+          itemCount: feedbackList.length,
           itemBuilder: (context, index) {
-            final doc = feedbackDocs[index];
-            final feedback = doc.data() as Map<String, dynamic>;
-            final docId = doc.id;
-
+            final feedback = feedbackList[index];
+            final docId = feedback['id'] as String;
             bool isDonor = feedback['type'] == 'Donor';
-            // Check if feedback is already published to community
             bool isPublished = feedback['isPublished'] ?? false;
 
             return Container(
@@ -2117,7 +2349,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
               decoration: BoxDecoration(
                 color: _cardBg,
                 borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: Colors.white.withOpacity(0.05)),
+                border: Border.all(
+                    color: Colors.white.withOpacity(0.05)),
               ),
               child: ListTile(
                 leading: CircleAvatar(
@@ -2125,10 +2358,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       ? Colors.green.withOpacity(0.1)
                       : Colors.blue.withOpacity(0.1),
                   child: Icon(
-                      isDonor ? Icons.volunteer_activism : Icons.shopping_bag,
-                      color: isDonor ? Colors.green : Colors.blue,
-                      size: 20
-                  ),
+                      isDonor
+                          ? Icons.volunteer_activism
+                          : Icons.shopping_bag,
+                      color:
+                      isDonor ? Colors.green : Colors.blue,
+                      size: 20),
                 ),
                 title: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2153,59 +2388,69 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 8),
-                    Text(
-                        feedback['content'] ?? '',
-                        style: const TextStyle(color: Colors.white70, fontSize: 13)
-                    ),
+                    Text(feedback['content'] ?? '',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 13)),
                     const SizedBox(height: 8),
                     if (feedback.containsKey('rating'))
                       Row(
-                        children: List.generate(5, (i) => Icon(
-                          Icons.star,
-                          size: 14,
-                          color: i < (feedback['rating'] ?? 0) ? Colors.amber : Colors.white10,
-                        )),
+                        children: List.generate(
+                            5,
+                                (i) => Icon(
+                              Icons.star,
+                              size: 14,
+                              color: i <
+                                  (feedback['rating'] ?? 0)
+                                  ? Colors.amber
+                                  : Colors.white10,
+                            )),
                       ),
                   ],
                 ),
-                // Trailing section with Publish and Delete actions
                 trailing: Wrap(
                   spacing: 4,
                   children: [
-                    // PUBLISH BUTTON
                     IconButton(
                       icon: Icon(
-                        isPublished ? Icons.cloud_done : Icons.cloud_upload_outlined,
-                        color: isPublished ? Colors.greenAccent : Colors.white38,
+                        isPublished
+                            ? Icons.cloud_done
+                            : Icons.cloud_upload_outlined,
+                        color: isPublished
+                            ? Colors.greenAccent
+                            : Colors.white38,
                         size: 22,
                       ),
                       onPressed: () async {
-                        // Toggle the isPublished status in Firestore
-                        await FirebaseFirestore.instance
+                        await _db
                             .collection('feedback')
                             .doc(docId)
-                            .update({'isPublished': !isPublished});
-
+                            .update(
+                            {'isPublished': !isPublished});
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(isPublished
-                                  ? 'Removed from Community'
-                                  : 'Published to Community Page'),
-                              backgroundColor: isPublished ? Colors.orange : Colors.green,
-                            ),
-                          );
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(
+                            content: Text(isPublished
+                                ? 'Removed from Community'
+                                : 'Published to Community Page'),
+                            backgroundColor: isPublished
+                                ? Colors.orange
+                                : Colors.green,
+                          ));
                         }
                       },
                     ),
-                    // DELETE BUTTON
                     IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+                      icon: const Icon(Icons.delete_outline,
+                          color: Colors.redAccent, size: 22),
                       onPressed: () {
-                        FirebaseFirestore.instance.collection('feedback').doc(docId).delete();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Feedback deleted permanently')),
-                        );
+                        _db
+                            .collection('feedback')
+                            .doc(docId)
+                            .delete();
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(const SnackBar(
+                            content: Text(
+                                'Feedback deleted permanently')));
                       },
                     ),
                   ],
@@ -2217,4 +2462,100 @@ class _AdminDashboardState extends State<AdminDashboard> {
       },
     );
   }
+
+  // ─────────────────────────────────────────────
+  //  SHARED HELPERS
+  // ─────────────────────────────────────────────
+
+  Widget _buildCard({required Widget child}) => Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: _cardBg,
+      borderRadius: BorderRadius.circular(16),
+      border:
+      Border.all(color: Colors.white.withOpacity(0.08)),
+    ),
+    child: child,
+  );
+
+  Widget _buildEmptyState(String message, IconData icon) => Center(
+    child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 50, color: Colors.white10),
+          const SizedBox(height: 10),
+          Text(message,
+              style: GoogleFonts.poppins(
+                  color: Colors.white38, fontSize: 14)),
+        ]),
+  );
+
+  Widget _loadingWidget() =>
+      const Center(child: CircularProgressIndicator(color: _accent));
+
+  Widget _statusBadge(String status) {
+    Color color = status == 'Accepted'
+        ? Colors.green
+        : status == 'Rejected'
+        ? Colors.red
+        : Colors.orange;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: color, width: 0.5),
+      ),
+      child: Text(status,
+          style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(children: [
+          Icon(icon, size: 16, color: _accent),
+          const SizedBox(width: 8),
+          Text("$label: $value",
+              style: const TextStyle(
+                  color: Colors.white70, fontSize: 12)),
+        ]),
+      );
+
+  Widget _impactCard(
+      String emoji, String value, String label) =>
+      Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+            color: _darkBg,
+            borderRadius: BorderRadius.circular(10)),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text(emoji),
+          const SizedBox(width: 8),
+          Text("$value $label",
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold)),
+        ]),
+      );
+
+  InputDecoration _inputDecoration(String label) => InputDecoration(
+    labelText: label,
+    labelStyle:
+    const TextStyle(color: Colors.white38, fontSize: 12),
+    filled: true,
+    fillColor: _darkBg,
+    enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white10)),
+    focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: _accent)),
+    contentPadding:
+    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  );
 }

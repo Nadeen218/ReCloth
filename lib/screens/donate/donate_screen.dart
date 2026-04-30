@@ -32,9 +32,10 @@ class _DonateScreenState extends State<DonateScreen> {
     {'name': '👕 Tops & T-Shirts', 'price': 3},
     {'name': '👖 Bottoms & Jeans', 'price': 5},
     {'name': '👗 Dresses & Skirts', 'price': 7},
-    {'name': '🧥 Outerwear & Jackets', 'price': 10},
+    {'name': '🧥 Outerwear & Formal', 'price': 10},
     {'name': '👟 Shoes & Footwear', 'price': 8},
     {'name': '👶 Kids & Baby Clothes', 'price': 4},
+    {'name': '🧩 Mixed Item', 'price': 2},
   ];
 
   final List<Map<String, String>> _conditions = [
