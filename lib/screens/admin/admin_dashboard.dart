@@ -61,8 +61,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Stream<List<Map<String, dynamic>>> get _ordersStream =>
       _db.collection('orders')
-      // if you face an Index error, remove the line below
-          .orderBy('createdAt', descending: true)
+          .orderBy('orderDate', descending: true)
           .snapshots()
           .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
 
