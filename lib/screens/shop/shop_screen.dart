@@ -46,13 +46,16 @@ class _ShopScreenState extends State<ShopScreen> {
                 final allDocs = snapshot.data!.docs;
                 final filteredProducts = allDocs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
+                  // --- Add this line to hide out of stock items ---
+                  int qty = data['quantity'] ?? 0;
+                  bool isAvailable = (data['isAvailable'] ?? true) && qty > 0;
 
                   bool matchesSearch = (data['title'] ?? '').toString().toLowerCase().contains(searchController.text.toLowerCase());
                   bool matchesGender = selectedGender == 'All' || (data['gender'] ?? 'All') == selectedGender;
                   bool matchesType = selectedType == 'All Types' || (data['type'] ?? 'All Types') == selectedType;
                   bool matchesCondition = selectedCondition == 'All Conditions' || (data['condition'] ?? 'All Conditions') == selectedCondition;
 
-                  return matchesSearch && matchesGender && matchesType && matchesCondition;
+                  return isAvailable && matchesSearch && matchesGender && matchesType && matchesCondition;
                 }).toList();
 
                 if (filteredProducts.isEmpty) {
@@ -153,7 +156,7 @@ class _ShopScreenState extends State<ShopScreen> {
                     ),
                   ),
                 ),
-                _buildFavoriteButton(product['title'], isFav),
+                //_buildFavoriteButton(product['title'], isFav),
               ],
             ),
             Padding(
@@ -249,7 +252,7 @@ class _ShopScreenState extends State<ShopScreen> {
     );
   }
 
-  Widget _buildFavoriteButton(String title, bool isFav) {
+  /*Widget _buildFavoriteButton(String title, bool isFav) {
     return Positioned(
       top: 10,
       right: 10,
@@ -261,7 +264,7 @@ class _ShopScreenState extends State<ShopScreen> {
         ),
       ),
     );
-  }
+  }*/
 
   Widget _buildAddToCartButton(Map<String, dynamic> product, CartProvider cart, bool isAvailable) {
     return SizedBox(

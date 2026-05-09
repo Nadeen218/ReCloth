@@ -61,7 +61,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Stream<List<Map<String, dynamic>>> get _ordersStream =>
       _db.collection('orders')
-          .orderBy('orderDate', descending: true)
+      // if you face an Index error, remove the line below
+          .orderBy('createdAt', descending: true)
           .snapshots()
           .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
 
@@ -909,22 +910,78 @@ class _AdminDashboardState extends State<AdminDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(child: Text(buyer,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+                      Expanded(
+                        child: Text(
+                          buyer,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
                       _statusBadge(order['status'] ?? 'Pending'),
                     ],
                   ),
+
                   const SizedBox(height: 12),
                   const Divider(color: Colors.white10, height: 1),
                   const SizedBox(height: 12),
+
                   _buildOrderInfoRow(Icons.person, "Customer:", buyer),
                   _buildOrderInfoRow(Icons.credit_card, "Payment:", payment),
                   _buildOrderInfoRow(Icons.location_on, "Address:", order['address'] ?? 'No Address'),
                   _buildOrderInfoRow(Icons.payments, "Total Amount:", total),
+
                   const SizedBox(height: 16),
+
+                  // ───── ADDED ORDER TRACKER ─────
+                  _buildOrderTracker(order['status'] ?? 'Pending'),
+
+                  const SizedBox(height: 12),
+
+                  // ───── ADDED ADMIN CONTROL PANEL ─────
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _db
+                              .collection('orders')
+                              .doc(order['id'])
+                              .update({'status': 'Confirmed'}),
+                          child: const Text("Confirm"),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _db
+                              .collection('orders')
+                              .doc(order['id'])
+                              .update({'status': 'Shipped'}),
+                          child: const Text("Ship"),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _db
+                              .collection('orders')
+                              .doc(order['id'])
+                              .update({'status': 'Delivered'}),
+                          child: const Text("Deliver"),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ───── YOUR ORIGINAL BUTTON (UNCHANGED) ─────
                   if (order['status'] == 'Pending')
                     SizedBox(
                       width: double.infinity,
@@ -932,11 +989,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.purple.withOpacity(0.1),
                           side: const BorderSide(color: Colors.purple, width: 0.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                        onPressed: () =>
-                            _db.collection('orders').doc(order['id']).update({'status': 'Shipped'}),
-                        child: const Text("Confirm & Ship Order", style: TextStyle(color: Colors.purpleAccent)),
+                        onPressed: () => _db
+                            .collection('orders')
+                            .doc(order['id'])
+                            .update({'status': 'Shipped'}),
+                        child: const Text(
+                          "Confirm & Ship Order",
+                          style: TextStyle(color: Colors.purpleAccent),
+                        ),
                       ),
                     ),
                 ],
@@ -947,7 +1011,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
       },
     );
   }
-
   Widget _buildOrderInfoRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -964,6 +1027,80 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
+  Widget _buildOrderTracker(String status) {
+    int step = 0;
+
+    switch (status) {
+      case 'Pending':
+        step = 0;
+        break;
+      case 'Confirmed':
+        step = 1;
+        break;
+      case 'Shipped':
+        step = 2;
+        break;
+      case 'Delivered':
+        step = 3;
+        break;
+      default:
+        step = 0;
+    }
+
+    List<String> steps = [
+      "Pending",
+      "Confirmed",
+      "Shipped",
+      "Delivered"
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Order Tracking",
+            style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+
+          Row(
+            children: List.generate(steps.length, (index) {
+              bool isActive = index <= step;
+
+              return Expanded(
+                child: Column(
+                  children: [
+                    Container(
+                      height: 6,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      decoration: BoxDecoration(
+                        color: isActive ? Colors.purple : Colors.white10,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      steps[index],
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isActive ? Colors.purpleAccent : Colors.white38,
+                      ),
+                    )
+                  ],
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
   // ─────────────────────────────────────────────
   //  INVENTORY
   // ─────────────────────────────────────────────
@@ -1256,8 +1393,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
     String selectedSize = item['size'] ?? 'M';
     String selectedCategory = item['category'] ?? 'General';
     String selectedGender = item['gender'] ?? 'All';
-    String? localSelectedCondition = item['condition'] ?? 'Excellent';
-
+    const List<String> validConditions = ['New', 'Excellent', 'Good', 'Fair', 'Remade/Upcycled'];
+    String? localSelectedCondition = validConditions.contains(item['condition'])
+        ? item['condition']
+        : 'Excellent';
     return showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -1575,6 +1714,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   // ─────────────────────────────────────────────
 
   Widget _buildWeeklyReport() {
+    // Set the threshold for the last 7 days
     final DateTime sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
 
     return StreamBuilder<List<Map<String, dynamic>>>(
@@ -1586,27 +1726,37 @@ class _AdminDashboardState extends State<AdminDashboard> {
           builder: (_, ordSnap) => StreamBuilder<List<Map<String, dynamic>>>(
             stream: _companiesStream,
             builder: (_, compSnap) {
+              // Safe data retrieval with default empty lists
               final users = usersSnap.data ?? [];
               final allDonations = donSnap.data ?? [];
               final allOrders = ordSnap.data ?? [];
+              final companies = compSnap.data ?? [];
 
+              // 1. Calculate Weekly Revenue (Checking for 'total' or 'totalAmount' fields)
               double weeklyRevenue = allOrders.where((order) {
                 final timestamp = order['createdAt'];
                 return timestamp is Timestamp && timestamp.toDate().isAfter(sevenDaysAgo);
-              }).fold(0.0, (sum, item) => sum + (double.tryParse(item['totalAmount']?.toString() ?? '0') ?? 0.0));
+              }).fold(0.0, (sum, item) {
+                var amount = item['total'] ?? item['totalAmount'] ?? 0;
+                return sum + (double.tryParse(amount.toString()) ?? 0.0);
+              });
 
+              // 2. Count donations created within the last 7 days
               int weeklyDonationsCount = allDonations.where((donation) {
                 final timestamp = donation['createdAt'];
                 return timestamp is Timestamp && timestamp.toDate().isAfter(sevenDaysAgo);
               }).length;
 
+              // 3. Count new users joined within the last 7 days
               int newUsersCount = users.where((u) {
                 final joinDate = u['joinDate'];
                 return joinDate is Timestamp && joinDate.toDate().isAfter(sevenDaysAgo);
               }).length;
 
+              // 4. Calculate Overall Impact (Aggregated from all user data)
               int totalItemsRecycled = users.fold(0, (sum, user) =>
               sum + (int.tryParse(user['totalDonations']?.toString() ?? '0') ?? 0));
+
               int totalCO2 = users.fold(0, (sum, user) =>
               sum + (int.tryParse(user['co2Saved']?.toString() ?? '0') ?? 0));
 
@@ -1625,7 +1775,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     const Divider(color: Colors.white12, height: 20),
                     _reportRow("Total CO₂ Impact", "${totalCO2}kg", Icons.eco, Colors.teal),
                     const Divider(color: Colors.white12, height: 20),
-                    _reportRow("Total Partners", "${compSnap.data?.length ?? 0}", Icons.handshake_outlined, Colors.purpleAccent),
+                    _reportRow("Total Partners", "${companies.length}", Icons.handshake_outlined, Colors.purpleAccent),
                   ])),
                   const SizedBox(height: 16),
                   Text('Overall Community Impact',

@@ -10,6 +10,7 @@ import '../profile/profile_screen.dart';
 import '../rewards/rewards_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../shop/track_order.dart';
 
 class HomeScreen extends StatefulWidget {
   final String name;
@@ -352,6 +353,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     if (userRole == 'Buyer' || userRole == 'Both') {
       cards.add(_actionCard(Icons.shopping_bag_outlined, 'Shop', 'Recycled fashion', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopScreen()))));
+      cards.add(
+        _actionCard(
+          Icons.local_shipping,
+          'My Orders',
+          'Track your orders',
+              () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TrackOrderScreen(),),
+          ),
+        ),
+      );
       cards.add(_actionCard(Icons.auto_awesome, 'Remake Studio', 'Suggest designs', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RemakeStudioScreen()))));
     }
     cards.add(_actionCard(Icons.card_giftcard, 'Rewards', 'Redeem points', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RewardsScreen()))));
