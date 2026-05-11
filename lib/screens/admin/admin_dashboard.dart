@@ -39,7 +39,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     'Coats',
     'Pants',
     'Shoes',
-    'Mixed Items'
+    'Others'
   ];
 
   final List<String> _donationStatuses = [
@@ -57,6 +57,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Stream<List<Map<String, dynamic>>> get _donationsStream =>
       _db.collection('donations').snapshots().map(
+
               (s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
 
   Stream<List<Map<String, dynamic>>> get _ordersStream =>
@@ -381,57 +382,98 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _buildOverviewContent() {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _donationsStream,
-      builder: (_, donSnap) =>
-          StreamBuilder<List<Map<String, dynamic>>>(
-            stream: _ordersStream,
-            builder: (_, ordSnap) {
-              final donations = donSnap.data ?? [];
-              final orders = ordSnap.data ?? [];
+      builder: (_, donSnap) => StreamBuilder<List<Map<String, dynamic>>>(
+        stream: _ordersStream,
+        builder: (_, ordSnap) {
+          // Handle loading states
+          if (donSnap.connectionState == ConnectionState.waiting || ordSnap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Colors.white));
+          }
 
-              return SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Recent Activity',
-                        style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                    const SizedBox(height: 12),
+          final donations = donSnap.data ?? [];
+          final orders = ordSnap.data ?? [];
 
-                    ...donations.take(2).map((d) {
-                      String donorName = d['donorName'] ?? d['donor'] ?? 'Guest Donor';
-                      String itemName = d['item'] ?? d['title'] ?? 'Clothes';
-                      return _activityTile(
-                        Icons.volunteer_activism, Colors.green,
-                        '$donorName donated $itemName',
-                        d['date'] ?? '', d, true,
-                      );
-                    }),
-
-                    ...orders.take(2).map((o) {
-                      String buyerName = o['userName'] ?? o['buyer'] ?? 'Anonymous';
-                      String amount = o['totalAmount']?.toString() ?? '0.0';
-                      return _activityTile(
-                        Icons.shopping_bag, Colors.blue,
-                        '$buyerName ordered items (₪$amount)',
-                        '', o, false,
-                      );
-                    }),
-
-                    if (donations.isEmpty && orders.isEmpty)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.only(top: 20),
-                          child: Text("No recent activity", style: TextStyle(color: Colors.white54)),
-                        ),
-                      ),
-                  ],
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Recent Activity',
+                  style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white
+                  ),
                 ),
-              );
-            },
-          ),
+                const SizedBox(height: 16),
+
+                ...donations.take(3).map((d) {
+                  String donorName = d['donorName'] ?? 'Guest Donor';
+                  String category = d['category'] ?? 'Clothing Item';
+
+                  String dateStr = "Recently";
+                  if (d['createdAt'] != null && d['createdAt'] is Timestamp) {
+                    DateTime dt = (d['createdAt'] as Timestamp).toDate();
+                    dateStr = "${dt.day}/${dt.month}";
+                  }
+
+                  return _activityTile(
+                    Icons.volunteer_activism_rounded,
+                    Colors.green,
+                    '$donorName donated $category',
+                    dateStr,
+                    d,
+                    true,
+                  );
+                }),
+
+                const SizedBox(height: 8),
+
+                ...orders.take(3).map((o) {
+                  // TrackOrderScreen uses 'userName' and 'totalAmount'
+                  String buyerName = o['userName'] ?? 'Customer';
+                  String amount = o['totalAmount']?.toString() ?? '0';
+
+                  String dateStr = "";
+                  if (o['orderDate'] != null && o['orderDate'] is Timestamp) {
+                    DateTime dt = (o['orderDate'] as Timestamp).toDate();
+                    dateStr = "${dt.day}/${dt.month}";
+                  }
+
+                  return _activityTile(
+                    Icons.shopping_bag_rounded,
+                    const Color(0xFF3B82F6),
+                    '$buyerName placed an order (₪$amount)',
+                    dateStr,
+                    o,
+                    false,
+                  );
+                }),
+
+                if (donations.isEmpty && orders.isEmpty)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 40),
+                      child: Column(
+                        children: [
+                          Icon(Icons.history_toggle_off, color: Colors.white.withOpacity(0.3), size: 50),
+                          const SizedBox(height: 10),
+                          Text(
+                              "No activity recorded today",
+                              style: GoogleFonts.poppins(color: Colors.white54)
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
-
   Widget _activityTile(IconData icon, Color color, String title, String date,
       Map<String, dynamic> data, bool isDonation) {
     return _buildCard(
@@ -902,14 +944,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
           itemBuilder: (context, i) {
             final order = orders[i];
             String buyer = order['userName'] ?? 'Anonymous';
-            String payment = order['paymentMethod'] ?? 'Cash';
             String total = "₪${order['totalAmount'] ?? '0.0'}";
 
             return _buildCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
+                  // 1. Header: Buyer Name and Status Badge
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -931,19 +972,65 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   const Divider(color: Colors.white10, height: 1),
                   const SizedBox(height: 12),
 
+                  // 2. Product Summary (Image and Name)
+                  Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          order['productImage'] ?? '',
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            width: 60, height: 60, color: Colors.white10,
+                            child: const Icon(Icons.image, color: Colors.white24),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          order['productName'] ?? 'Multiple Items',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+                  const Divider(color: Colors.white10, height: 1),
+                  const SizedBox(height: 12),
+
+                  // 3. Detailed Order Info (The Updated Part)
                   _buildOrderInfoRow(Icons.person, "Customer:", buyer),
-                  _buildOrderInfoRow(Icons.credit_card, "Payment:", payment),
+
+                  // --- Payment Details ---
+                  _buildOrderInfoRow(Icons.credit_card, "Payment Method:", order['paymentMethod'] ?? 'N/A'),
+                  _buildOrderInfoRow(
+                      Icons.verified,
+                      "Payment Status:",
+                      order['paymentStatus'] ?? 'Pending'
+                  ),
+                  // -----------------------
+
                   _buildOrderInfoRow(Icons.location_on, "Address:", order['address'] ?? 'No Address'),
                   _buildOrderInfoRow(Icons.payments, "Total Amount:", total),
 
                   const SizedBox(height: 16),
 
-                  // ───── ADDED ORDER TRACKER ─────
+                  // 4. Order Tracking Visualization
                   _buildOrderTracker(order['status'] ?? 'Pending'),
 
                   const SizedBox(height: 12),
 
-                  // ───── ADDED ADMIN CONTROL PANEL ─────
+                  // 5. Admin Control Buttons
                   Row(
                     children: [
                       Expanded(
@@ -980,7 +1067,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
                   const SizedBox(height: 12),
 
-                  // ───── YOUR ORIGINAL BUTTON (UNCHANGED) ─────
+                  // 6. Quick Action Button (For Pending Orders)
                   if (order['status'] == 'Pending')
                     SizedBox(
                       width: double.infinity,
@@ -1009,8 +1096,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         );
       },
     );
-  }
-  Widget _buildOrderInfoRow(IconData icon, String label, String value) {
+  }  Widget _buildOrderInfoRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(

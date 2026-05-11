@@ -6,13 +6,20 @@ import 'package:firebase_auth/firebase_auth.dart';
 class TrackDonationsScreen extends StatelessWidget {
   const TrackDonationsScreen({super.key});
 
-  // Configuration for the vertical tracking timeline
+  // Steps for the donation lifecycle timeline
   final List<Map<String, dynamic>> _steps = const [
-    {'icon': Icons.check_circle_outline, 'label': 'Pending', 'desc': 'Request received'},
+    {'icon': Icons.receipt_long_outlined, 'label': 'Pending', 'desc': 'Request received'},
     {'icon': Icons.local_shipping_outlined, 'label': 'Picked Up', 'desc': 'Driver is on the way'},
     {'icon': Icons.water_drop_outlined, 'label': 'Cleaning', 'desc': 'At our facility'},
     {'icon': Icons.label_outline, 'label': 'Ready for Sale', 'desc': 'Listed on marketplace'},
-    {'icon': Icons.attach_money, 'label': 'Sold', 'desc': 'Completed'},
+    {'icon': Icons.attach_money, 'label': 'Sold', 'desc': 'Process completed'},
+  ];
+
+  // Theme Colors
+  final List<Color> _purpleGradient = const [
+    Color(0xFF6B21A8),
+    Color(0xFF7C3AED),
+    Color(0xFF9333EA),
   ];
 
   @override
@@ -21,12 +28,13 @@ class TrackDonationsScreen extends StatelessWidget {
     final TextEditingController feedbackController = TextEditingController();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3EEFF),
+      backgroundColor: const Color(0xFFF9F7FF), // Soft purple background
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -34,7 +42,7 @@ class TrackDonationsScreen extends StatelessWidget {
           style: GoogleFonts.poppins(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: const Color(0xFF4A148C),
           ),
         ),
       ),
@@ -46,11 +54,11 @@ class TrackDonationsScreen extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(child: Text('Error: ${snapshot.error}', style: GoogleFonts.poppins()));
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Colors.purple));
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF7C3AED)));
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -73,103 +81,158 @@ class TrackDonationsScreen extends StatelessWidget {
               String currentStatus = donation['status'] ?? 'Pending';
 
               return Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(25),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.purple.withOpacity(0.08),
-                      blurRadius: 10,
+                      color: const Color(0xFF7C3AED).withOpacity(0.06),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
                     )
                   ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // --- Header Section ---
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              donation['category'] ?? 'Clothing Item',
-                              style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold),
-                            ),
-                            Text(
-                              formattedDate,
-                              style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45),
-                            ),
-                          ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                donation['category'] ?? 'Clothing Item',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF2D0C57)
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                formattedDate,
+                                style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45),
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 10),
                         _buildStatusBadge(currentStatus),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
 
+                    // --- Timeline Section ---
                     ..._steps.map((step) {
+                      final stepIndex = _steps.indexOf(step);
+                      final currentIndex = _steps.indexWhere((s) => s['label'] == currentStatus);
                       final isActive = step['label'] == currentStatus;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          children: [
-                            Icon(
-                              step['icon'] as IconData,
-                              color: isActive ? Colors.purple : Colors.grey.shade300,
-                              size: 22,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    step['label'],
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 13,
-                                      color: isActive ? Colors.black87 : Colors.grey.shade400,
-                                      fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                                    ),
+                      final isPassed = stepIndex < currentIndex;
+
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Column(
+                            children: [
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 300),
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  gradient: isActive ? LinearGradient(colors: _purpleGradient) : null,
+                                  color: isActive ? null : (isPassed ? const Color(0xFFF3EEFF) : Colors.grey[100]),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  isPassed ? Icons.check : step['icon'] as IconData,
+                                  size: 14,
+                                  color: isActive ? Colors.white : (isPassed ? const Color(0xFF7C3AED) : Colors.grey[400]),
+                                ),
+                              ),
+                              if (step != _steps.last)
+                                Container(
+                                  width: 2,
+                                  height: 20,
+                                  color: isPassed ? const Color(0xFF7C3AED).withOpacity(0.3) : Colors.grey[200],
+                                ),
+                            ],
+                          ),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  step['label'],
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                                    color: isActive ? const Color(0xFF7C3AED) : (isPassed ? Colors.black87 : Colors.grey[400]),
                                   ),
-                                  if (isActive)
-                                    Text(
+                                ),
+                                if (isActive)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: Text(
                                       step['desc'],
                                       style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45),
                                     ),
-                                ],
-                              ),
+                                  ),
+                                const SizedBox(height: 8),
+                              ],
                             ),
-                            if (isActive)
-                              Icon(Icons.check_circle, color: Colors.purple.shade200, size: 18),
-                          ],
-                        ),
+                          ),
+                        ],
                       );
                     }),
 
-                    const Divider(height: 32),
-                    _detailRow('Condition:', donation['condition'] ?? 'N/A'),
-                    _detailRow('Pickup Address:', donation['address'] ?? 'Palestine'),
+                    const Divider(height: 32, color: Color(0xFFF3EEFF)),
+
+                    // --- Details Section ---
+                    _detailRow('Condition', donation['condition'] ?? 'N/A'),
+                    const SizedBox(height: 8),
+                    _detailRow('Pickup Address', donation['address'] ?? 'Palestine'),
+                    const SizedBox(height: 8),
                     _detailRow(
-                      'Points Earned:',
-                      '+${donation['pointsEarned'] ?? 0} points',
-                      valueColor: Colors.purple,
+                      'Points Earned',
+                      '+${donation['pointsEarned'] ?? 0} Points',
+                      isPoints: true,
                     ),
 
-                    const SizedBox(height: 16),
-
                     if (currentStatus == 'Sold') ...[
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () => _showFeedbackDialog(context, feedbackController),
-                          icon: const Icon(Icons.rate_review_outlined, size: 18, color: Colors.white),
-                          label: Text('Share your Experience', style: GoogleFonts.poppins(color: Colors.white)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurple,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      const SizedBox(height: 20),
+                      GestureDetector(
+                        onTap: () => _showFeedbackDialog(context, feedbackController),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: _purpleGradient),
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF7C3AED).withOpacity(0.3),
+                                blurRadius: 10,
+                                offset: const Offset(0, 5),
+                              )
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.rate_review_rounded, color: Colors.white, size: 18),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Share your Experience',
+                                style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -184,7 +247,6 @@ class TrackDonationsScreen extends StatelessWidget {
     );
   }
 
-  // --- RECTIFIED FEEDBACK LOGIC WITH FIREBASE ---
   void _showFeedbackDialog(BuildContext context, TextEditingController controller) {
     showModalBottomSheet(
       context: context,
@@ -197,36 +259,37 @@ class TrackDonationsScreen extends StatelessWidget {
         ),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Feedback', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('We value your donation journey!', style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45)),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10))),
             const SizedBox(height: 20),
+            Text('Feedback', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF2D0C57))),
+            const SizedBox(height: 8),
+            Text('We value your donation journey!', style: GoogleFonts.poppins(fontSize: 13, color: Colors.black45)),
+            const SizedBox(height: 24),
             TextField(
               controller: controller,
               maxLines: 3,
               decoration: InputDecoration(
                 hintText: 'How was your experience?',
-                hintStyle: GoogleFonts.poppins(fontSize: 13),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.black26),
                 filled: true,
-                fillColor: Colors.grey.shade50,
+                fillColor: const Color(0xFFF9F7FF),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Color(0xFFF3EEFF))),
               ),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () async {
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: () async {
                 final feedbackText = controller.text.trim();
                 if (feedbackText.isEmpty) return;
 
                 final user = FirebaseAuth.instance.currentUser;
-
                 try {
-                  // Save to 'feedback' collection
                   await FirebaseFirestore.instance.collection('feedback').add({
                     'userId': user?.uid,
                     'userName': user?.displayName ?? (user?.email != null ? user!.email!.split('@')[0] : "Donor"),
@@ -238,26 +301,27 @@ class TrackDonationsScreen extends StatelessWidget {
                   });
 
                   if (context.mounted) {
-                    Navigator.pop(sheetContext); // Close using the sheet context
+                    Navigator.pop(sheetContext);
                     controller.clear();
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Thank you! Feedback shared with the community.')),
+                      const SnackBar(content: Text('Feedback shared! Thank you.'), backgroundColor: Color(0xFF7C3AED)),
                     );
                   }
                 } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
-                    );
-                  }
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                 }
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: _purpleGradient),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Center(
+                  child: Text('Submit Feedback', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
               ),
-              child: const Text('Submit Feedback', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -267,28 +331,36 @@ class TrackDonationsScreen extends StatelessWidget {
 
   Widget _buildStatusBadge(String status) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3EEFF),
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFF7C3AED).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         status,
-        style: GoogleFonts.poppins(fontSize: 11, color: Colors.purple, fontWeight: FontWeight.w500),
+        style: GoogleFonts.poppins(fontSize: 11, color: const Color(0xFF7C3AED), fontWeight: FontWeight.bold),
       ),
     );
   }
 
-  Widget _detailRow(String label, String value, {Color valueColor = Colors.black87}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45)),
-          Text(value, style: GoogleFonts.poppins(fontSize: 12, color: valueColor, fontWeight: FontWeight.w600)),
-        ],
-      ),
+  Widget _detailRow(String label, String value, {bool isPoints = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: isPoints ? const Color(0xFF7C3AED) : const Color(0xFF2D0C57),
+                fontWeight: FontWeight.bold
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -297,19 +369,26 @@ class TrackDonationsScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.local_shipping_outlined, size: 100, color: Colors.grey[300]),
+          Container(
+            padding: const EdgeInsets.all(30),
+            decoration: const BoxDecoration(color: Color(0xFFF3EEFF), shape: BoxShape.circle),
+            child: Icon(Icons.volunteer_activism_outlined, size: 70, color: const Color(0xFF7C3AED).withOpacity(0.5)),
+          ),
           const SizedBox(height: 24),
-          Text("No Donations Yet", style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
+          Text("No Donations Yet", style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF4A148C))),
+          const SizedBox(height: 10),
           Text("Start your eco-friendly journey now!", style: GoogleFonts.poppins(color: Colors.black45)),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00B050),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          const SizedBox(height: 40),
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: _purpleGradient),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Text("Donate Now", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
-            child: const Text("Donate Now", style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

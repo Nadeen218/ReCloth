@@ -25,50 +25,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (widget.role == 'Both') return 'Donor & Buyer';
     return widget.role;
   }
+
   Future<void> _signUp() async {
-    // Loading
+    // Show Loading Dialog
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.purple)),
+      builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFF7C3AED))),
     );
 
     try {
-      // create account in Firebase Authentication
+      // Create account in Firebase Authentication
       UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      //save additional data in firestore
+
+      // Save additional data in firestore
       await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
         'uid': userCredential.user!.uid,
         'name': _nameController.text.trim(),
         'email': _emailController.text.trim(),
         'phone': _phoneController.text.trim(),
         'address': _addressController.text.trim(),
-        'role': widget.role, //role who came from role selection screen
+        'role': widget.role,
+        'points': 0, // Initial points
         'createdAt': DateTime.now(),
       });
 
       if (!mounted) return;
-      Navigator.pop(context);
+      Navigator.pop(context); // Close loading
 
-      //move to home or login screen
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Account Created Successfully!')),
       );
+
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
 
     } on FirebaseAuthException catch (e) {
-      Navigator.pop(context); //close loading
+      if (mounted) Navigator.pop(context);
       String message = "An error occurred";
       if (e.code == 'weak-password') message = "The password is too weak.";
       else if (e.code == 'email-already-in-use') message = "Email already exists.";
-
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
-      Navigator.pop(context);
-      print(e);
+      if (mounted) Navigator.pop(context);
     }
   }
 
@@ -86,7 +87,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.purple.withOpacity(0.1),
+                  color: const Color(0xFF7C3AED).withOpacity(0.1),
                   blurRadius: 20,
                   offset: const Offset(0, 5),
                 ),
@@ -107,140 +108,107 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     style: GoogleFonts.poppins(fontSize: 13, color: Colors.black45),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
 
                 // Full Name
-                Text('Full Name', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    hintText: 'e.g. Nadeen Abu Hilweh',
-                    prefixIcon: const Icon(Icons.person_outline),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                  ),
-                ),
+                _buildLabel('Full Name'),
+                _buildTextField(_nameController, 'e.g. Nadeen Abu Hilweh', Icons.person_outline),
                 const SizedBox(height: 16),
 
                 // Email
-                Text('Email', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _emailController,
-                  decoration: InputDecoration(
-                    hintText: 'your@email.com',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                  ),
-                ),
+                _buildLabel('Email'),
+                _buildTextField(_emailController, 'your@email.com', Icons.email_outlined, type: TextInputType.emailAddress),
                 const SizedBox(height: 16),
 
                 // Password
-                Text('Password', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 6),
+                _buildLabel('Password'),
                 TextField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
                     hintText: '••••••••',
-                    prefixIcon: const Icon(Icons.lock_outline),
+                    prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF7C3AED)),
                     suffixIcon: IconButton(
                       icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
                       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                     ),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     filled: true,
-                    fillColor: Colors.grey[100],
+                    fillColor: Colors.grey[50],
                   ),
                 ),
                 const SizedBox(height: 16),
 
                 // Phone
-                Text('Phone Number', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(
-                    hintText: '+1234567890',
-                    prefixIcon: const Icon(Icons.phone_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                  ),
-                ),
+                _buildLabel('Phone Number'),
+                _buildTextField(_phoneController, '+970 59x xxx xxx', Icons.phone_outlined, type: TextInputType.phone),
                 const SizedBox(height: 16),
 
                 // Address
-                Text('Address', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _addressController,
-                  decoration: InputDecoration(
-                    hintText: 'Jerusalem',
-                    prefixIcon: const Icon(Icons.location_on_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                  ),
-                ),
-                const SizedBox(height: 24),
+                _buildLabel('Address'),
+                _buildTextField(_addressController, 'e.g. Jerusalem', Icons.location_on_outlined),
+                const SizedBox(height: 32),
 
-                // Create Account Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      //to check its not empty
-                      if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
-                        _signUp();
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please fill in all fields')),
-                        );
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                // Create Account Button with Gradient
+                GestureDetector(
+                  onTap: () {
+                    if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
+                      _signUp();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please fill in all fields')),
+                      );
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 55,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFF6B21A8),
+                          Color(0xFF7C3AED),
+                          Color(0xFF9333EA),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF7C3AED).withOpacity(0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    child: Text('Create Account', style: GoogleFonts.poppins(fontSize: 16, color: Colors.white)),
+                    child: Center(
+                      child: Text(
+                        'Create Account',
+                        style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
-                // Change User Type
+                // Back to Role Selection
                 Center(
                   child: TextButton.icon(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-                      );
-                    },
-                    icon: const Icon(Icons.arrow_back, size: 16, color: Colors.purple),
-                    label: Text('Change User Type', style: GoogleFonts.poppins(color: Colors.purple, fontSize: 13)),
+                    onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const RoleSelectionScreen())),
+                    icon: const Icon(Icons.arrow_back, size: 16, color: Color(0xFF7C3AED)),
+                    label: Text('Change User Type', style: GoogleFonts.poppins(color: const Color(0xFF7C3AED), fontSize: 13, fontWeight: FontWeight.w600)),
                   ),
                 ),
 
-                // Sign In
+                // Footer: Sign In Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text("Already have an account? ", style: GoogleFonts.poppins(fontSize: 13)),
                     GestureDetector(
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        );
-                      },
-                      child: Text('Sign In', style: GoogleFonts.poppins(fontSize: 13, color: Colors.purple, fontWeight: FontWeight.bold)),
+                      onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
+                      child: Text('Sign In', style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF7C3AED), fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
@@ -248,6 +216,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // Helper Widget for Labels
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(text, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black87)),
+    );
+  }
+
+  // Helper Widget for TextFields
+  Widget _buildTextField(TextEditingController controller, String hint, IconData icon, {TextInputType type = TextInputType.text}) {
+    return TextField(
+      controller: controller,
+      keyboardType: type,
+      decoration: InputDecoration(
+        hintText: hint,
+        prefixIcon: Icon(icon, color: const Color(0xFF7C3AED)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Colors.grey[50],
       ),
     );
   }

@@ -21,14 +21,20 @@ class _DonateScreenState extends State<DonateScreen> {
   String? _selectedCategory;
   String? _selectedCondition;
   String? _selectedOption;
-  String? _selectedGender;       // NEW
-  String? _selectedPickupTime;   // NEW
-  DateTime? _selectedDate;       // NEW
+  String? _selectedGender;
+  String? _selectedPickupTime;
+  DateTime? _selectedDate;
   File? _pickedImage;
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
 
-  // Constants for environmental impact calculation
+  // Primary Theme Colors
+  final List<Color> _purpleGradient = const [
+    Color(0xFF6B21A8),
+    Color(0xFF7C3AED),
+    Color(0xFF9333EA),
+  ];
+
   final double _co2PerItem = 2.5;
 
   final List<Map<String, dynamic>> _categories = [
@@ -38,7 +44,7 @@ class _DonateScreenState extends State<DonateScreen> {
     {'name': '🧥 Outerwear & Formal', 'price': 10},
     {'name': '👟 Shoes & Footwear', 'price': 8},
     {'name': '👶 Kids & Baby Clothes', 'price': 4},
-    {'name': '🧩 Mixed Item', 'price': 2},
+    {'name': '🧩 Others', 'price': 2},
   ];
 
   final List<Map<String, String>> _conditions = [
@@ -53,7 +59,6 @@ class _DonateScreenState extends State<DonateScreen> {
     {'emoji': '❤️', 'title': 'Full Donation', 'desc': 'Help the environment', 'points': 'Earns 20 points'},
   ];
 
-  // NEW: Gender options
   final List<Map<String, String>> _genderOptions = [
     {'emoji': '👨', 'title': 'Men'},
     {'emoji': '👩', 'title': 'Women'},
@@ -61,14 +66,13 @@ class _DonateScreenState extends State<DonateScreen> {
     {'emoji': '🔀', 'title': 'Mix'},
   ];
 
-  // NEW: Pickup time slots
   final List<Map<String, String>> _pickupTimes = [
     {'emoji': '🌅', 'title': 'Morning', 'range': '8:00 AM – 12:00 PM'},
     {'emoji': '☀️', 'title': 'Afternoon', 'range': '12:00 PM – 4:00 PM'},
     {'emoji': '🌙', 'title': 'Evening', 'range': '4:00 PM – 8:00 PM'},
   ];
 
-  // NEW: Date picker
+  // Date Picker with custom theme
   Future<void> _pickDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -79,9 +83,9 @@ class _DonateScreenState extends State<DonateScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Colors.purple,
+              primary: Color(0xFF7C3AED),
               onPrimary: Colors.white,
-              onSurface: Colors.black,
+              onSurface: Color(0xFF4A148C),
             ),
           ),
           child: child!,
@@ -101,9 +105,7 @@ class _DonateScreenState extends State<DonateScreen> {
       imageQuality: 70,
     );
     if (image != null) {
-      setState(() {
-        _pickedImage = File(image.path);
-      });
+      setState(() => _pickedImage = File(image.path));
     }
   }
 
@@ -129,7 +131,6 @@ class _DonateScreenState extends State<DonateScreen> {
       return;
     }
 
-    // NEW: Validate new fields too
     if (_selectedCategory == null ||
         _selectedCondition == null ||
         _selectedOption == null ||
@@ -147,7 +148,7 @@ class _DonateScreenState extends State<DonateScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.purple)),
+      builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFF7C3AED))),
     );
 
     try {
@@ -161,7 +162,6 @@ class _DonateScreenState extends State<DonateScreen> {
 
       int pointsToEarn = _selectedOption == 'Full Donation' ? 20 : 10;
 
-      // Save donation — now includes gender, date, pickupTime
       await FirebaseFirestore.instance.collection('donations').add({
         'userId': user.uid,
         'donorName': _nameController.text,
@@ -183,7 +183,6 @@ class _DonateScreenState extends State<DonateScreen> {
 
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         DocumentSnapshot snapshot = await transaction.get(userRef);
-
         if (snapshot.exists) {
           transaction.update(userRef, {
             'totalDonations': FieldValue.increment(1),
@@ -192,23 +191,11 @@ class _DonateScreenState extends State<DonateScreen> {
             'status': 'Active',
             'lastActivity': FieldValue.serverTimestamp(),
           });
-        } else {
-          transaction.set(userRef, {
-            'userName': _nameController.text,
-            'email': user.email,
-            'totalDonations': 1,
-            'points': pointsToEarn,
-            'co2Saved': _co2PerItem,
-            'totalPaid': 0.0,
-            'status': 'Active',
-            'createdAt': FieldValue.serverTimestamp(),
-          });
         }
       });
 
       if (!mounted) return;
       Navigator.pop(context);
-
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => DonationSubmittedScreen(pointsEarned: pointsToEarn)),
@@ -226,51 +213,55 @@ class _DonateScreenState extends State<DonateScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3EEFF),
+      backgroundColor: const Color(0xFFF9F7FF),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Donate Clothes',
-          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF4A148C)),
         ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [BoxShadow(color: Colors.purple.withOpacity(0.08), blurRadius: 10)],
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF7C3AED).withOpacity(0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              )
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Donation Details', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
+              Text('Donation Details', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF2D0C57))),
+              const SizedBox(height: 24),
 
-              // Full Name
+              // Inputs
               _buildLabel('Full Name'),
               TextField(decoration: _inputDecoration('Your Name'), controller: _nameController),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              // Address
               _buildLabel('Pickup Address'),
-              Row(
-                children: [
-                  Expanded(child: TextField(decoration: _inputDecoration('Address'), controller: _addressController)),
-                  const SizedBox(width: 8),
-                  _buildIconBtn(Icons.location_on_outlined),
-                ],
+              TextField(
+                controller: _addressController,
+                decoration: _inputDecoration('Address').copyWith(
+                  prefixIcon: const Icon(Icons.location_on_outlined, color: Color(0xFF7C3AED), size: 22),
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              // Category
               _buildLabel('Clothing Category'),
               DropdownButtonFormField<String>(
                 value: _selectedCategory,
@@ -282,9 +273,9 @@ class _DonateScreenState extends State<DonateScreen> {
                 )).toList(),
                 onChanged: (val) => setState(() => _selectedCategory = val),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              //Gender
+              // Gender Selector with updated colors
               _buildLabel('Gender'),
               Row(
                 children: _genderOptions.map((g) {
@@ -292,28 +283,28 @@ class _DonateScreenState extends State<DonateScreen> {
                   return Expanded(
                     child: GestureDetector(
                       onTap: () => setState(() => _selectedGender = g['title']),
-                      child: Container(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
                         margin: const EdgeInsets.only(right: 6),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFFF3EEFF) : Colors.grey[100],
-                          borderRadius: BorderRadius.circular(10),
+                          color: isSelected ? const Color(0xFF7C3AED).withOpacity(0.1) : Colors.grey[50],
+                          borderRadius: BorderRadius.circular(15),
                           border: Border.all(
-                            color: isSelected ? Colors.purple : Colors.grey.shade300,
-                            width: isSelected ? 1.5 : 1,
+                            color: isSelected ? const Color(0xFF7C3AED) : Colors.transparent,
+                            width: 1.5,
                           ),
                         ),
                         child: Column(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(g['emoji']!, style: const TextStyle(fontSize: 20)),
-                            const SizedBox(height: 4),
+                            Text(g['emoji']!, style: const TextStyle(fontSize: 22)),
+                            const SizedBox(height: 6),
                             Text(
                               g['title']!,
                               style: GoogleFonts.poppins(
                                 fontSize: 11,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                                color: isSelected ? Colors.purple : Colors.black54,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                color: isSelected ? const Color(0xFF7C3AED) : Colors.black54,
                               ),
                             ),
                           ],
@@ -323,8 +314,8 @@ class _DonateScreenState extends State<DonateScreen> {
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 16),
-              // Condition
+              const SizedBox(height: 20),
+
               _buildLabel('Condition'),
               DropdownButtonFormField<String>(
                 value: _selectedCondition,
@@ -337,52 +328,47 @@ class _DonateScreenState extends State<DonateScreen> {
                 onChanged: (val) {
                   setState(() {
                     _selectedCondition = val;
-                    if (_selectedCondition == 'Damaged') {
-                      _selectedOption = 'Full Donation';
-                    }
+                    if (_selectedCondition == 'Damaged') _selectedOption = 'Full Donation';
                   });
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
-              // Preferred Option
+              // Options with Purple styling
               _buildLabel('Preferred Option'),
               ..._options.where((option) {
                 if (_selectedCondition == 'Damaged') return option['title'] == 'Full Donation';
                 return true;
               }).map((option) => GestureDetector(
                 onTap: () => setState(() => _selectedOption = option['title']),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(12),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: _selectedOption == option['title'] ? const Color(0xFFF3EEFF) : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    color: _selectedOption == option['title'] ? const Color(0xFF7C3AED).withOpacity(0.05) : Colors.white,
+                    borderRadius: BorderRadius.circular(15),
                     border: Border.all(
-                      color: _selectedOption == option['title'] ? Colors.purple : Colors.grey.shade200,
+                      color: _selectedOption == option['title'] ? const Color(0xFF7C3AED) : const Color(0xFFF3EEFF),
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        _selectedOption == option['title'] ? Icons.check_circle : Icons.circle_outlined,
-                        color: _selectedOption == option['title'] ? Colors.purple : Colors.grey,
+                        _selectedOption == option['title'] ? Icons.check_circle_rounded : Icons.circle_outlined,
+                        color: _selectedOption == option['title'] ? const Color(0xFF7C3AED) : Colors.grey[300],
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 15),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('${option['emoji']} ${option['title']}',
-                                style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold)),
-                            Text(
-                              (option['title'] == 'Symbolic Payment' && _selectedCategory != null)
-                                  ? 'You will get ${_categories.firstWhere((c) => c['name'] == _selectedCategory)['price']} NIS for this item'
-                                  : option['desc'],
-                              style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45),
-                            ),
+                                style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF2D0C57))),
+                            Text(option['desc'], style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45)),
+                            const SizedBox(height: 4),
                             Text(option['points'],
-                                style: GoogleFonts.poppins(fontSize: 11, color: Colors.purple, fontWeight: FontWeight.w600)),
+                                style: GoogleFonts.poppins(fontSize: 11, color: const Color(0xFF7C3AED), fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -390,145 +376,113 @@ class _DonateScreenState extends State<DonateScreen> {
                   ),
                 ),
               )),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              //NEW: Donation Date
               _buildLabel('Pickup Date'),
               GestureDetector(
                 onTap: _pickDate,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: _selectedDate != null ? Colors.purple : Colors.grey.shade300,
-                      width: _selectedDate != null ? 1.5 : 1,
-                    ),
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _selectedDate != null ? const Color(0xFF7C3AED) : Colors.transparent),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today_outlined,
-                          color: _selectedDate != null ? Colors.purple : Colors.grey, size: 18),
-                      const SizedBox(width: 10),
+                      const Icon(Icons.calendar_month_rounded, color: Color(0xFF7C3AED), size: 20),
+                      const SizedBox(width: 12),
                       Text(
-                        _selectedDate != null
-                            ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
-                            : 'Select a date',
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          color: _selectedDate != null ? Colors.black87 : Colors.black38,
-                        ),
+                        _selectedDate != null ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}' : 'Select a date',
+                        style: GoogleFonts.poppins(fontSize: 13, color: _selectedDate != null ? Colors.black87 : Colors.black38),
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              //Pickup Time
-              _buildLabel('Preferred Pickup Time'),
-              Column(
-                children: _pickupTimes.map((t) {
-                  final isSelected = _selectedPickupTime == t['title'];
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedPickupTime = t['title']),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFFF3EEFF) : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isSelected ? Colors.purple : Colors.grey.shade200,
-                          width: isSelected ? 1.5 : 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            isSelected ? Icons.check_circle : Icons.circle_outlined,
-                            color: isSelected ? Colors.purple : Colors.grey,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Text(t['emoji']!, style: const TextStyle(fontSize: 20)),
-                          const SizedBox(width: 10),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(t['title']!,
-                                  style: GoogleFonts.poppins(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: isSelected ? Colors.purple : Colors.black87)),
-                              Text(t['range']!,
-                                  style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              //  Pickup Time
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              // Photos
-              Row(
-                children: [
-                  _buildLabel('Photos'),
-                  const SizedBox(width: 4),
-                  Text(
-                    _isImageRequired() ? '(Required)' : '(Optional)',
-                    style: GoogleFonts.poppins(
-                        fontSize: 11, color: _isImageRequired() ? Colors.red : Colors.black45),
+              _buildLabel('Preferred Pickup Time'),
+              ..._pickupTimes.map((t) {
+                final isSelected = _selectedPickupTime == t['title'];
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedPickupTime = t['title']),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF7C3AED).withOpacity(0.05) : Colors.white,
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: isSelected ? const Color(0xFF7C3AED) : const Color(0xFFF3EEFF)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(isSelected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                            color: isSelected ? const Color(0xFF7C3AED) : Colors.grey[300], size: 20),
+                        const SizedBox(width: 15),
+                        Text(t['emoji']!, style: const TextStyle(fontSize: 22)),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(t['title']!, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: isSelected ? const Color(0xFF7C3AED) : Colors.black87)),
+                            Text(t['range']!, style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45)),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 6),
+                );
+              }),
+
+              const SizedBox(height: 20),
+              _buildLabel('Photos'),
+              const SizedBox(height: 8),
               GestureDetector(
                 onTap: _pickImage,
                 child: Container(
-                  height: 150,
+                  height: 160,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    border: Border.all(color: _pickedImage != null ? Colors.green : Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(10),
+                    color: Colors.grey[50],
+                    border: Border.all(color: _pickedImage != null ? Colors.green : const Color(0xFFF3EEFF), width: 1.5),
+                    borderRadius: BorderRadius.circular(15),
                   ),
                   child: _pickedImage != null
-                      ? ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.file(_pickedImage!, fit: BoxFit.cover),
-                  )
+                      ? ClipRRect(borderRadius: BorderRadius.circular(15), child: Image.file(_pickedImage!, fit: BoxFit.cover))
                       : Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.upload_outlined, color: Colors.grey, size: 32),
-                        const SizedBox(height: 8),
-                        Text('Click to upload item photo',
-                            style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45)),
+                        const Icon(Icons.add_a_photo_outlined, color: Color(0xFF7C3AED), size: 35),
+                        const SizedBox(height: 10),
+                        Text('Click to upload photo', style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45)),
+                        if (_isImageRequired()) Text('(Required)', style: GoogleFonts.poppins(fontSize: 10, color: Colors.redAccent)),
                       ],
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 35),
 
-              // Submit Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isUploading ? null : _submitDonation,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+              // Gradient Submit Button
+              GestureDetector(
+                onTap: _isUploading ? null : _submitDonation,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: _purpleGradient),
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(color: const Color(0xFF7C3AED).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))
+                    ],
                   ),
-                  child: Text(
-                    'Submit Donation Request',
-                    style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold),
+                  child: Center(
+                    child: Text(
+                      'Submit Donation Request',
+                      style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
                   ),
                 ),
               ),
@@ -541,27 +495,16 @@ class _DonateScreenState extends State<DonateScreen> {
 
   InputDecoration _inputDecoration(String hint) => InputDecoration(
     hintText: hint,
+    hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.black26),
     filled: true,
-    fillColor: Colors.grey[100],
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide.none,
-    ),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    fillColor: Colors.grey[50],
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFF3EEFF))),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
   );
 
   Widget _buildLabel(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 6),
-    child: Text(text, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500)),
-  );
-
-  Widget _buildIconBtn(IconData icon) => Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.grey[100],
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: Colors.grey.shade300),
-    ),
-    child: Icon(icon, color: Colors.purple, size: 20),
+    padding: const EdgeInsets.only(bottom: 8, left: 4),
+    child: Text(text, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF4A148C))),
   );
 }

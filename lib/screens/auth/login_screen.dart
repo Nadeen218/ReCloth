@@ -17,30 +17,26 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // Controllers to capture user input
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
-  /// Handles Google Sign-In process and Firebase authentication
+  // Sign In with Google Logic
   Future<void> _signInWithGoogle() async {
-    // Show a loading indicator
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.deepPurple)),
+      builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFF7C3AED))),
     );
 
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-
       if (googleUser == null) {
         if (mounted) Navigator.pop(context);
         return;
       }
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -50,11 +46,9 @@ class _LoginScreenState extends State<LoginScreen> {
       User? user = userCredential.user;
 
       if (user != null) {
-        // Check if the user profile exists in Firestore
         DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
 
         if (!userDoc.exists) {
-          // Create a default profile for new Google users
           await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
             'name': user.displayName ?? 'User',
             'email': user.email,
@@ -68,7 +62,6 @@ class _LoginScreenState extends State<LoginScreen> {
         Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
 
         if (mounted) {
-          // Update the Global State
           final userProvider = Provider.of<UserProvider>(context, listen: false);
           userProvider.setUserDetails(
             name: data['name'] ?? 'User',
@@ -77,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
             points: data['points'] ?? 0,
           );
 
-          Navigator.pop(context); // Close loading dialog
+          Navigator.pop(context);
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomeScreen(name: data['name'])));
         }
       }
@@ -87,17 +80,15 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// Main Sign In logic handling Email and Password with Role-based redirection
+  // Email/Password Sign In Logic
   Future<void> _signIn() async {
-    // Show loading indicator
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.deepPurple)),
+      builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFF7C3AED))),
     );
 
     try {
-      // Authenticate with Firebase Auth
       UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
@@ -106,51 +97,33 @@ class _LoginScreenState extends State<LoginScreen> {
       User? user = userCredential.user;
 
       if (user != null) {
-        // Fetch user data and role from Firestore
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
 
         if (!mounted) return;
-        Navigator.pop(context); // Dismiss loading indicator
+        Navigator.pop(context);
 
         if (userDoc.exists) {
           Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
-          String role = data['role'] ?? 'Buyer';
-          String name = data['name'] ?? 'User';
-          int points = data['points'] ?? 0;
-
-          // Update Global State (UserProvider)
           final userProvider = Provider.of<UserProvider>(context, listen: false);
           userProvider.setUserDetails(
-            name: name,
-            role: role,
+            name: data['name'] ?? 'User',
+            role: data['role'] ?? 'Buyer',
             email: user.email!,
-            points: points,
+            points: data['points'] ?? 0,
           );
 
-          // Role-based Redirection Logic
-          if (role == 'admin') {
-            // Redirect to Admin Dashboard if role is admin
+          if (data['role'] == 'admin') {
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminDashboard()));
           } else {
-            // Redirect to Home Screen for regular users
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomeScreen(name: name)));
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomeScreen(name: data['name'])));
           }
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User profile not found.")));
         }
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) Navigator.pop(context);
-      String message = "Login Failed";
-      if (e.code == 'user-not-found') message = "No user found for this email.";
-      else if (e.code == 'wrong-password') message = "Wrong password provided.";
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? "Login Failed")));
     } catch (e) {
       if (mounted) Navigator.pop(context);
-      debugPrint("Login Error: ${e.toString()}");
     }
   }
 
@@ -189,25 +162,24 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: GoogleFonts.poppins(fontSize: 13, color: Colors.black45),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
 
-                // Email Input Field
+                // Email Field
                 Text('Email', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
                     hintText: 'your@email.com',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF7C3AED)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     filled: true,
-                    fillColor: Colors.grey[100],
+                    fillColor: Colors.grey[50],
                   ),
                 ),
                 const SizedBox(height: 16),
 
-                // Password Input Field
+                // Password Field
                 Text('Password', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 6),
                 TextField(
@@ -215,41 +187,66 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
                     hintText: '••••••••',
-                    prefixIcon: const Icon(Icons.lock_outline),
+                    prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF7C3AED)),
                     suffixIcon: IconButton(
                       icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
                       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                     ),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     filled: true,
-                    fillColor: Colors.grey[100],
+                    fillColor: Colors.grey[50],
                   ),
                 ),
                 const SizedBox(height: 24),
 
-                // Login Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
-                        _signIn();
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all fields')));
-                      }
-                    },
-                    icon: const Icon(Icons.login, color: Colors.white),
-                    label: Text('Sign In', style: GoogleFonts.poppins(fontSize: 16, color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                // Updated Login Button with the requested Gradient
+                GestureDetector(
+                  onTap: () {
+                    if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
+                      _signIn();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all fields')));
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 55,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFF6B21A8), // Deep Purple
+                          Color(0xFF7C3AED), // Medium Purple
+                          Color(0xFF9333EA), // Bright Purple
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF7C3AED).withOpacity(0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.login, color: Colors.white),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Sign In',
+                            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
 
-                // Visual Divider
                 Row(
                   children: [
                     const Expanded(child: Divider()),
@@ -260,36 +257,33 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Expanded(child: Divider()),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
 
-                // Google Sign In Button
+                // Google Sign In
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: _signInWithGoogle,
-                    icon: const Icon(Icons.g_mobiledata, size: 32, color: Colors.red),
-                    label: Text('Sign in with Google', style: GoogleFonts.poppins(fontSize: 14)),
+                    icon: const Icon(Icons.g_mobiledata, size: 32, color: Colors.red),                    label: Text('Sign in with Google', style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87)),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: const BorderSide(color: Colors.grey),
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
 
-                // Registration Navigation
                 Center(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Dont have an account? '),
+                      const Text('Don\'t have an account? '),
                       GestureDetector(
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const RoleSelectionScreen()));
-                        },
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RoleSelectionScreen())),
                         child: Text(
                           'Create Account',
-                          style: GoogleFonts.poppins(fontSize: 13, color: Colors.deepPurple, fontWeight: FontWeight.bold),
+                          style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF7C3AED), fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
