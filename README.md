@@ -19,7 +19,8 @@
 **ReCloth** is a comprehensive mobile application developed using **Flutter** and **Firebase**. The project is dedicated to promoting environmental sustainability and the circular economy by providing a streamlined platform for donating, refurbishing, and reselling quality second-hand clothing at affordable prices.
 ### **1. Onboarding & Security**
 
-*   **Splash Screen**: The first point of interaction featuring the app logo and the tagline: “Because Every Piece Tells a Story”.
+*   **Loading Screen**: The first point of interaction featuring the app logo and the tagline: “Because Every Piece Tells a Story”.
+*   **Home screen**: The second screen that appear for guest and explain what app do for visitor
 *   **Authentication Flow**: Secure **Login** and **Register** screens powered by Firebase Auth, allowing users to join the ReCloth community or access the Admin panel.
 
 ### **2. Core Experience**
