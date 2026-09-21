@@ -18,40 +18,13 @@
 
 ---
 
-## 📱 Project Overview & Screens
+## 📱 Project Overview
 
-**ReCloth** is a comprehensive mobile application developed using **Flutter** and **Firebase**. The project is dedicated to promoting environmental sustainability and the circular economy by providing a streamlined platform for donating, refurbishing, and reselling quality second-hand clothing at affordable prices.
+**ReCloth** is a comprehensive mobile application developed using **Flutter** and **Firebase**. The project promotes environmental sustainability and the circular economy through a platform for donating, refurbishing, and reselling quality second-hand clothing at affordable prices.
 
-### **1. Onboarding & Security**
+The app covers a full donor-to-buyer journey — secure authentication, a donation flow, a shopping/marketplace flow with cart and checkout, a rewards system, and a dedicated Admin Dashboard for managing inventory, donations, and service-provider companies (cleaning, tailoring/remake, delivery).
 
-*   **Loading Screen**: The first point of interaction featuring the app logo and the tagline: "Because Every Piece Tells a Story".
-*   **Home screen**: The second screen that appears for guests, explaining what the app does for visitors.
-*   **Authentication Flow**: Secure **Login** and **Register** screens powered by Firebase Auth, allowing users to join the ReCloth community or access the Admin panel.
-
-### **2. Core Experience**
-
-*   **Home Screen**: A central dashboard providing quick navigation to main activities: Donate, Shop, Rewards, and tracking.
-*   **Profile Management**: A comprehensive section including **Edit Profile**, **Settings**, and **Help & Support** to ensure a personalized user experience.
-
-### **3. Donation Journey (Donor Flow)**
-
-*   **Donate Screen**: A structured form where users can submit donation requests for their used clothes.
-*   **Donation Submitted**: A confirmation screen providing immediate feedback after a successful donation request.
-*   **Track Donations**: A real-time interface for users to monitor the status and history of their contributions.
-
-### **4. Shopping Journey (Buyer Flow)**
-
-*   **Shop Screen**: A categorized marketplace to browse high-quality refurbished clothing.
-*   **Item Details**: In-depth view for each product, allowing users to see descriptions and quality before purchasing.
-*   **Cart & Checkout**: A seamless flow to manage selected items and finalize purchases with a secure "Cash on Delivery" system.
-*   **Order Placed**: A dedicated success screen confirming the order has been received and processed.
-
-### **5. Special Features & Administration**
-
-*   **Remake Studio**: A unique space dedicated to the creative side of clothing refurbishment and sustainability.
-*   **Rewards Screen**: A gamified area where users can view points and rewards earned through their sustainable actions.
-*   **Admin Dashboard**: A powerful management interface for tracking global statistics, managing inventory, and overseeing donation requests.
-*   **Company Management**: A dedicated interface within the Admin Dashboard to manage service providers, including Cleaning Companies, Tailor Shops (Remake), and Delivery Services, ensuring a professional workflow for refurbishing clothes.
+*Detailed screen-by-screen flow is available in the app demo above and in the full documentation submitted with the graduation project.*
 
 ---
 
@@ -76,46 +49,21 @@
 
 ## 🗺️ Future Roadmap
 
-*   Integration of AI for automatic clothing quality assessment via image recognition.
-*   Integration of a secure online payment gateway (Stripe / PayPal).
-*   Implementation of a localized map (Google Maps API) for precise donation pickups.
+Planned future enhancements include AI-assisted quality assessment, secure online payments, and integrated map-based pickup scheduling.
 
 ---
 
 ## 🚀 Installation & Setup
 
-> This section is provided for academic evaluation and demonstration purposes only. Running the project locally does not grant any license to reuse, redistribute, or repurpose its code or design — see [Rights & License](#️-rights--license).
+> For academic evaluation purposes, full setup instructions (repository access, dependency installation, and Firebase configuration) are available upon request from the author or supervising committee. This information is intentionally not published in full here to protect the project from unauthorized reuse.
 
-To run this project locally, follow these steps:
-
-### 1. Prerequisites
-*   Install [Flutter SDK](https://docs.flutter.dev/get-started/install).
-*   Install [Firebase CLI](https://firebase.google.com/docs/cli).
-
-### 2. Clone the Repository
-     git clone https://github.com/Nadeen218/Graduation-project.git
-     cd Graduation-project
-
-### 3. Install Dependencies
-    flutter pub get
-
-### 4. Configuration
-*  Add your google-services.json to the android/app/ directory.
-*  Ensure Firebase is initialized within the app.
-
-### 5. Run the App
-    flutter run
+The project is built with **Flutter** and requires a configured **Firebase** backend (Firestore + Auth) to run.
 
 ---
 
 ## 🏗 Key Technical Implementation Details
 
-* During the development, several critical technical milestones were achieved:
-* Firebase Integration: Successfully resolved Gradle conflicts and SDK versioning to ensure stable connectivity.
-* Role-Based Access Control: Implemented logic to distinguish between Admin and User accounts, securing the administrative dashboard.
-* Inventory Management: Developed a system that automatically updates stock levels in Firestore upon successful order placement.
-* Automated Authentication: Implemented a "Stay Logged In" feature using FirebaseAuth.instance.currentUser for a better user experience.
-* Vendor Management System: Designed and implemented a CRUD system for managing external service providers (Companies) to handle the refurbishment phase of the circular economy model.
+During development, several technical milestones were achieved, including resolving Firebase integration issues (Gradle/SDK versioning), implementing role-based access control to secure the admin dashboard, building automated real-time inventory updates in Firestore, adding persistent authentication for a smoother user experience, and designing a CRUD-based system for managing external service providers involved in the refurbishment process.
 
 ---
 
