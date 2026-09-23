@@ -92,5 +92,3 @@ For collaboration, licensing, or reuse requests, please contact the author direc
 **Nadeen Abu Hilweh**
 *   **GitHub**: [github.com/Nadeen218](https://github.com/Nadeen218)
 *   **LinkedIn**: [LinkedIn](https://www.linkedin.com/in/nadeen-abu-hilweh/)
-
-*If you found this project interesting, please ⭐ star the repository instead of copying it — it helps support the author's work while respecting her rights.*
